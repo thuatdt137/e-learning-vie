@@ -1,16 +1,16 @@
-using e_learning_vie.Models;
+﻿using e_learning_vie.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Th�m DbContext
+// Thêm DbContext
 builder.Services.AddDbContext<SchoolManagementContext>(options =>
 	options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
 
-builder.Services.AddIdentity<User, IdentityRole<int>>()
+builder.Services.AddIdentityCore<User>()
 	.AddEntityFrameworkStores<SchoolManagementContext>()
-	.AddDefaultTokenProviders();
+	.AddApiEndpoints();
 
 // Add services to the container.
 
@@ -19,7 +19,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors();
 
+
+builder.Services.AddAuthorization();
+builder.Services.AddAuthentication().AddCookie(IdentityConstants.ApplicationScheme)
+	.AddBearerToken(IdentityConstants.BearerScheme);
+
 var app = builder.Build();
+app.MapIdentityApi<User>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
