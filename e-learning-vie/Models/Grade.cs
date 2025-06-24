@@ -9,6 +9,8 @@ public partial class Grade
 
     public int? StudentId { get; set; }
 
+    public string? GradeType { get; set; }
+
     public int? SubjectId { get; set; }
 
     public double? Score { get; set; }
