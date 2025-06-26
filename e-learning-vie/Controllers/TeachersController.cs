@@ -1,6 +1,5 @@
 ﻿using e_learning_vie.Models;
 using e_learning_vie.ModelsDTO;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,16 +17,29 @@ namespace e_learning_vie.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Teacher>> GetTeacher([FromForm] int id)
+        public async Task<ActionResult<TeachersDto>> GetTeacher(int id)
         {
             var teacher = await _context.Teachers.FindAsync(id);
             if (teacher == null)
                 return NotFound();
-            return teacher;
+
+            var dto = new TeachersDto
+            {
+                TeacherId = teacher.TeacherId,
+                FirstName = teacher.FirstName,
+                LastName = teacher.LastName,
+                DateOfBirth = teacher.DateOfBirth,
+                Address = teacher.Address,
+                Phone = teacher.Phone,
+                Email = teacher.Email,
+                SchoolId = teacher.SchoolId
+            };
+
+            return dto;
         }
 
         [HttpPost("CreateTeacher")]
-        public async Task<ActionResult<Teacher>> CreateTeacher([FromForm] TeachersDto dto)
+        public async Task<ActionResult<TeachersDto>> CreateTeacher([FromForm] TeachersDto dto)
         {
             var teacher = new Teacher
             {
@@ -43,16 +55,28 @@ namespace e_learning_vie.Controllers
             _context.Teachers.Add(teacher);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetTeacher), new { id = teacher.TeacherId }, teacher);
+            dto.TeacherId = teacher.TeacherId; 
+
+            return CreatedAtAction(nameof(GetTeacher), new { id = teacher.TeacherId }, dto);
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTeacher([FromForm] int id, Teacher teacher)
+        [HttpPut("UpdateTeacher")]
+        public async Task<IActionResult> UpdateTeacher(int id, [FromForm] TeachersDto dto)
         {
-            if (id != teacher.TeacherId)
+            if (id != dto.TeacherId)
                 return BadRequest();
 
-            _context.Entry(teacher).State = EntityState.Modified;
+            var teacher = await _context.Teachers.FindAsync(id);
+            if (teacher == null)
+                return NotFound();
+
+            teacher.FirstName = dto.FirstName;
+            teacher.LastName = dto.LastName;
+            teacher.DateOfBirth = dto.DateOfBirth;
+            teacher.Address = dto.Address;
+            teacher.Phone = dto.Phone;
+            teacher.Email = dto.Email;
+            teacher.SchoolId = dto.SchoolId;
 
             try
             {
@@ -68,8 +92,8 @@ namespace e_learning_vie.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTeacher([FromForm] int id)
+        [HttpDelete("DeleteTeacher/{id}")]
+        public async Task<IActionResult> DeleteTeacher(int id)
         {
             var teacher = await _context.Teachers.FindAsync(id);
             if (teacher == null)

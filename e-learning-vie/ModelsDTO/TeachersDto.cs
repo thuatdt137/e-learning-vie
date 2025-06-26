@@ -2,6 +2,7 @@
 {
     public class TeachersDto
     {
+        public int TeacherId { get; set; }
         public string FirstName { get; set; } = null!;
         public string LastName { get; set; } = null!;
         public DateOnly? DateOfBirth { get; set; }
