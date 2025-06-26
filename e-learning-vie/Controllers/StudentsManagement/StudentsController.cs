@@ -6,24 +6,28 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using e_learning_vie.Models;
+using Microsoft.AspNetCore.Identity;
 
-namespace e_learning_vie.Controllers
+namespace e_learning_vie.Controllers.StudentsManagement
 {
     [Route("api/[controller]")]
     [ApiController]
     public class StudentsController : ControllerBase
     {
         private readonly SchoolManagementContext _context;
+		private readonly UserManager<User> _userManager;
 
-        public StudentsController(SchoolManagementContext context)
-        {
-            _context = context;
-        }
+		public StudentsController(SchoolManagementContext context, UserManager<User> userManager)
+		{
+			_context = context;
+			_userManager = userManager;
+		}
 
-        // GET: api/Students
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Student>>> GetStudents()
+		// GET: api/Students
+		[HttpGet]
+        public async Task<ActionResult<IEnumerable<Student>>> GetStudentsBySchool()
         {
+            
             return await _context.Students.ToListAsync();
         }
 
