@@ -1,4 +1,5 @@
-﻿using System;
+﻿using e_learning_vie.Enums;
+using System;
 using System.Collections.Generic;
 
 namespace e_learning_vie.Models;
@@ -9,7 +10,7 @@ public partial class School
 
     public string SchoolName { get; set; } = null!;
 
-    public string? SchoolType { get; set; }
+    public SchoolType SchoolType { get; set; }
 
     public string? Address { get; set; }
 

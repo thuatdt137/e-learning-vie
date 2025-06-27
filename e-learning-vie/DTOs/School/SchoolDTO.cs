@@ -1,4 +1,6 @@
-﻿namespace e_learning_vie.DTOs.School
+﻿using e_learning_vie.Enums;
+
+namespace e_learning_vie.DTOs.School
 {
     public class SchoolDTO
     {
@@ -6,7 +8,7 @@
 
         public string SchoolName { get; set; } = null!;
 
-        public string? SchoolType { get; set; }
+        public SchoolType SchoolType { get; set; }
 
         public string? Address { get; set; }
 

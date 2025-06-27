@@ -11,6 +11,11 @@ builder.Services.AddDbContext<SchoolManagementContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
 
 builder.Services.AddScoped<ISchoolService, SchoolService>();
+builder.Services.AddScoped<IStudentScheduleService, StudentScheduleService>();
+builder.Services.AddScoped<IStudentGradeService, StudentGradeService>();
+builder.Services.AddScoped<IStudentAspirationService, StudentAspirationService>();
+builder.Services.AddScoped<IUserContextService, UserContextService>();
+
 
 builder.Services.AddIdentity<User, IdentityRole<int>>(options =>
 {
