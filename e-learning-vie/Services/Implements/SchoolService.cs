@@ -13,7 +13,22 @@ namespace e_learning_vie.Services.Implements
         }
         public SchoolDTO AddSchool(SchoolDTO schoolDto)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var principal = _context.Teachers.FirstOrDefault(p => p.TeacherId == schoolDto.PrincipalId);
+                if(principal == null)
+                {
+                    throw new KeyNotFoundException("Principal not found");
+                }
+                var school = schoolDto.ToSchool();
+                _context.Schools.Add(school);
+                _context.SaveChanges();
+                return new SchoolDTO(school);
+            }
+            catch
+            {
+                throw;
+            }
         }
 
         public SchoolDTO GetSchoolById(int id)
@@ -36,9 +51,9 @@ namespace e_learning_vie.Services.Implements
                     PrincipalId = school.PrincipalId
                 };
             }
-            catch(Exception ex)
+            catch
             {
-                throw new Exception($"An error occurred while retrieving the school with ID {id}.", ex);
+                throw;
             }
         }
 
@@ -57,9 +72,9 @@ namespace e_learning_vie.Services.Implements
                     PrincipalId = s.PrincipalId
                 }).ToList();
             }
-            catch(Exception ex)
+            catch
             {
-                throw new Exception("An error occurred while retrieving the school list.", ex);
+                throw;
             }
         }
 

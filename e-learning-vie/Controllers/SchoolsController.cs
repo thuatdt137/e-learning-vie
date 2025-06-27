@@ -1,4 +1,6 @@
-﻿using e_learning_vie.Models;
+﻿using e_learning_vie.Commons;
+using e_learning_vie.DTOs.School;
+using e_learning_vie.Models;
 using e_learning_vie.Services.Interfaces;
 using e_learning_vie.Utils;
 using Microsoft.AspNetCore.Mvc;
@@ -51,30 +53,63 @@ namespace e_learning_vie.Controllers
                     .ToList();
                 if(schools == null || !schools.Any())
                 {
-                    return StatusCode(StatusCodes.Status404NotFound, "No schools found.");
+                    return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No schools found!"));
                 }
-                return StatusCode(StatusCodes.Status200OK, schools);
+                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", schools));
             }
             catch(Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred while retrieving the school list: {ex.Message}");
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred {ex.Message}"));
             }
         }
         [HttpGet("{id}")]
-        public IActionResult GetSchoolById(int id)
+        public IActionResult GetSchoolById(int? id)
         {
             try
             {
-                var school = _schoolService.GetSchoolById(id);
+                var school = _schoolService.GetSchoolById(id.Value);
                 if(school == null)
                 {
-                    return StatusCode(StatusCodes.Status404NotFound, $"School with ID {id} not found.");
+                    return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail($"School with ID {id} not found."));
                 }
-                return StatusCode(StatusCodes.Status200OK, school);
+                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school success", school));
             }
             catch(Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred while retrieving the school: {ex.Message}");
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Fail($"An error occurred: {ex.Message}", ex));
+            }
+        }
+
+        [HttpPost]
+        public IActionResult AddSchool([FromBody] SchoolDTO schoolDto)
+        {
+            if(schoolDto == null)
+            {
+                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data."));
+            }
+            if(!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+
+                return BadRequest(ApiResponse<object>.Fail("One or more validation errors occurred.", errors));
+            }
+            try
+            {
+                var newSchool = _schoolService.AddSchool(schoolDto);
+                return StatusCode(StatusCodes.Status201Created, ApiResponse<object>.Success("School added successfully", newSchool));
+            }
+            catch(KeyNotFoundException knfEx)
+            {
+                return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Error(knfEx.Message));
+            }
+            catch(Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred: {ex.Message}"));
             }
         }
 
