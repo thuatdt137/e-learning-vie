@@ -9,6 +9,7 @@ using e_learning_vie.Models;
 using Microsoft.AspNetCore.Identity;
 using e_learning_vie.DTOs.StudentDtos;
 using e_learning_vie.Commons;
+using e_learning_vie.Utils;
 
 namespace e_learning_vie.Controllers.StudentsManagement
 {
@@ -27,16 +28,44 @@ namespace e_learning_vie.Controllers.StudentsManagement
 
 		// GET: api/Students
 		[HttpGet]
-		public async Task<ActionResult<IEnumerable<Student>>> GetStudentsBySchool()
+		public async Task<ActionResult<PaginatedResponse<StudentListDto>>> GetStudentsBySchool(
+			[FromQuery] int? pageNumber,
+			[FromQuery] int? pageSize)
 		{
+			// Get validated pagination parameters
+			var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
 
+			// Get total count
+			var totalItems = await _context.Students.CountAsync();
+
+			// Get paginated data
 			var students = await _context.Students
-			.AsNoTracking()
-			.ToListAsync();
+				.AsNoTracking()
+				.Select(s => new StudentListDto
+				{
+					StudentId = s.StudentId,
+					IdentityCode = s.IdentityCode,
+					FirstName = s.FirstName,
+					LastName = s.LastName,
+					ClassId = s.ClassId,
+					SchoolId = s.SchoolId
+				})
+				.OrderBy(s => s.StudentId) // Optional: Add sorting for consistent results
+				.Skip((effectivePageNumber - 1) * effectivePageSize)
+				.Take(effectivePageSize)
+				.ToListAsync();
 
-			return Ok(ApiResponse<List<Student>>.Success(
+			// Create paginated response
+			var response = new PaginatedResponse<StudentListDto>(
+				items: students,
+				totalItems: totalItems,
+				pageNumber: effectivePageNumber,
+				pageSize: effectivePageSize
+			);
+
+			return Ok(ApiResponse<PaginatedResponse<StudentListDto>>.Success(
 				"Danh sách student",
-				students
+				response
 			));
 		}
 
