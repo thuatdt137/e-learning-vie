@@ -87,6 +87,17 @@ namespace e_learning_vie.Controllers
             {
                 return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data."));
             }
+            if(!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors
+                        .Select(e => e.ErrorMessage).ToArray()
+                    );
+                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data.", errors));
+            }
             try
             {
                 var newSchool = _schoolService.AddSchool(schoolDto);
