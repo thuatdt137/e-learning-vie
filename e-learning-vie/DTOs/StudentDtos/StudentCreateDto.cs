@@ -22,9 +22,11 @@ namespace e_learning_vie.DTOs.StudentDtos
 		[StringLength(200, ErrorMessage = "Address must be less than 200 characters.")]
 		public string? Address { get; set; }
 
-		[Phone(ErrorMessage = "Invalid phone number format.")]
+		[RegularExpression(@"^(0|\+84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-9])[0-9]{7}$",
+			ErrorMessage = "Số điện thoại không hợp lệ theo định dạng Việt Nam.")]
 		[StringLength(20, ErrorMessage = "Phone number must be less than 20 digits.")]
 		public string? Phone { get; set; }
+
 
 		// Mapper thủ công sang Entity
 		public Student ToStudent()
