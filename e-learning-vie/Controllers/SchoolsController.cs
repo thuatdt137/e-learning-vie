@@ -22,12 +22,30 @@ namespace e_learning_vie.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetSchoolList(int? pageNumber, int? pageSize)
+        public IActionResult GetSchoolList(int? pageNumber, int? pageSize, string? schoolType, string? keyWord)
         {
             try
             {
                 var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
-                var schools = _schoolService.GetSchoolList()
+
+                schoolType = schoolType?.Trim() ?? "";
+                keyWord = keyWord?.Trim() ?? "";
+
+                var schools = _schoolService.GetSchoolList();
+
+                if(!string.IsNullOrEmpty(schoolType))
+                {
+                    schools = schools.Where(s => s.SchoolType != null && s.SchoolType.Contains(schoolType, StringComparison.OrdinalIgnoreCase)).ToList();
+                }
+                if(!string.IsNullOrEmpty(keyWord))
+                {
+                    schools = schools.Where(s => s.SchoolName.Contains(keyWord, StringComparison.OrdinalIgnoreCase) ||
+                                                  s.Address.Contains(keyWord, StringComparison.OrdinalIgnoreCase) ||
+                                                  s.Phone.Contains(keyWord, StringComparison.OrdinalIgnoreCase) ||
+                                                  s.Email.Contains(keyWord, StringComparison.OrdinalIgnoreCase)).ToList();
+                }
+
+                schools = schools
                     .Skip((effectivePageNumber - 1) * effectivePageSize)
                     .Take(effectivePageSize)
                     .ToList();
