@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using e_learning_vie.Models;
 using Microsoft.AspNetCore.Identity;
+using e_learning_vie.DTOs.StudentDtos;
+using e_learning_vie.Commons;
 
 namespace e_learning_vie.Controllers.StudentsManagement
 {
@@ -27,13 +29,20 @@ namespace e_learning_vie.Controllers.StudentsManagement
 		[HttpGet]
         public async Task<ActionResult<IEnumerable<Student>>> GetStudentsBySchool()
         {
-            
-            return await _context.Students.ToListAsync();
-        }
+
+			var students = await _context.Students
+			.AsNoTracking()
+			.ToListAsync();
+
+			return Ok(ApiResponse<List<Student>>.Success(
+				"Danh sách student",
+				students
+			));
+		}
 
         // GET: api/Students/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Student>> GetStudent(int id)
+        public async Task<ActionResult<Student>> GetStudentById(int id)
         {
             var student = await _context.Students.FindAsync(id);
 
@@ -42,11 +51,10 @@ namespace e_learning_vie.Controllers.StudentsManagement
                 return NotFound();
             }
 
-            return student;
+            return Ok(student);
         }
 
         // PUT: api/Students/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutStudent(int id, Student student)
         {
@@ -76,32 +84,93 @@ namespace e_learning_vie.Controllers.StudentsManagement
             return NoContent();
         }
 
-        // POST: api/Students
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<Student>> PostStudent(Student student)
-        {
-            _context.Students.Add(student);
-            await _context.SaveChangesAsync();
+		// POST: api/Students
+		[HttpPost]
+		public async Task<IActionResult> CreateStudent([FromBody] StudentCreateDto dto)
+		{
+			// 1. Check trùng IdentityCode
+			var exists = await _context.Students
+				.AnyAsync(st => st.IdentityCode == dto.IdentityCode);
 
-            return CreatedAtAction("GetStudent", new { id = student.StudentId }, student);
-        }
+			if (exists)
+			{
+				return BadRequest(ApiResponse<object>.Fail(
+					"IdentityCode đã tồn tại.",
+					new { identityCode = new[] { "IdentityCode must be unique." } }
+				));
+			}
 
-        // DELETE: api/Students/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteStudent(int id)
-        {
-            var student = await _context.Students.FindAsync(id);
-            if (student == null)
-            {
-                return NotFound();
-            }
+			// 2. Tạo Student
+			var student = dto.ToStudent();
+			_context.Students.Add(student);
+			await _context.SaveChangesAsync(); // Lưu để có StudentId
 
-            _context.Students.Remove(student);
-            await _context.SaveChangesAsync();
+			// 3. Tạo User
+			var user = new User
+			{
+				UserName = dto.IdentityCode,
+				Student = student
+			};
 
-            return NoContent();
-        }
+			var createUserResult = await _userManager.CreateAsync(user, "Password123@");
+			if (!createUserResult.Succeeded)
+			{
+				var errors = createUserResult.Errors
+					.GroupBy(e => e.Code)
+					.ToDictionary(
+						g => g.Key,
+						g => g.Select(e => e.Description).ToArray()
+					);
+
+				return BadRequest(ApiResponse<object>.Fail("Không tạo được tài khoản người dùng.", errors));
+			}
+
+			await _userManager.AddToRoleAsync(user, "Student");
+
+			// 4. Trả về
+			return StatusCode(201, ApiResponse<object>.Success(
+				"Tạo student thành công.",
+				new
+				{
+					student.StudentId,
+					student.FirstName,
+					student.LastName,
+					student.IdentityCode
+				}
+			));
+		}
+
+
+		[HttpGet("test-cause-error")]
+		public IActionResult CauseError()
+		{
+			int a = 0;
+			int result = 1 / a;
+
+			return Ok(result);
+		}
+
+		[HttpGet("by-school/{schoolId}")]
+		public async Task<IActionResult> GetStudentsBySchool(int schoolId)
+		{
+			var students = await _context.Students
+				.Where(s => s.SchoolId == schoolId)
+				.Select(s => new StudentListDto
+				{
+					StudentId = s.StudentId,
+					IdentityCode = s.IdentityCode,
+					FirstName = s.FirstName,
+					LastName = s.LastName,
+					SchoolId = s.SchoolId,
+					ClassId = s.ClassId
+				})
+				.ToListAsync();
+
+			return Ok(ApiResponse<List<StudentListDto>>.Success(
+				$"Danh sách học sinh của trường {schoolId}",
+				students
+			));
+		}
 
         private bool StudentExists(int id)
         {

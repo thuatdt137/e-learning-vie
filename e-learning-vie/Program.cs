@@ -68,6 +68,8 @@ app.UseCors(c =>
 });
 
 app.UseHttpsRedirection();
+app.UseMiddleware<e_learning_vie.Middlewares.ExceptionMiddleware>();
+
 
 app.UseAuthentication();
 app.UseAuthorization();
