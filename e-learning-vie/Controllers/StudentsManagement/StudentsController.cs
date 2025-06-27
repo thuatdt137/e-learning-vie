@@ -12,11 +12,11 @@ using e_learning_vie.Commons;
 
 namespace e_learning_vie.Controllers.StudentsManagement
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class StudentsController : ControllerBase
-    {
-        private readonly SchoolManagementContext _context;
+	[Route("api/[controller]")]
+	[ApiController]
+	public class StudentsController : ControllerBase
+	{
+		private readonly SchoolManagementContext _context;
 		private readonly UserManager<User> _userManager;
 
 		public StudentsController(SchoolManagementContext context, UserManager<User> userManager)
@@ -27,8 +27,8 @@ namespace e_learning_vie.Controllers.StudentsManagement
 
 		// GET: api/Students
 		[HttpGet]
-        public async Task<ActionResult<IEnumerable<Student>>> GetStudentsBySchool()
-        {
+		public async Task<ActionResult<IEnumerable<Student>>> GetStudentsBySchool()
+		{
 
 			var students = await _context.Students
 			.AsNoTracking()
@@ -40,104 +40,118 @@ namespace e_learning_vie.Controllers.StudentsManagement
 			));
 		}
 
-        // GET: api/Students/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Student>> GetStudentById(int id)
-        {
-            var student = await _context.Students.FindAsync(id);
+		// GET: api/Students/5
+		[HttpGet("{id}")]
+		public async Task<ActionResult<Student>> GetStudentById(int id)
+		{
+			var student = await _context.Students.FindAsync(id);
 
-            if (student == null)
-            {
-                return NotFound();
-            }
+			if (student == null)
+			{
+				return NotFound();
+			}
 
-            return Ok(student);
-        }
+			return Ok(student);
+		}
 
-        // PUT: api/Students/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutStudent(int id, Student student)
-        {
-            if (id != student.StudentId)
-            {
-                return BadRequest();
-            }
+		// PUT: api/Students/5
+		[HttpPut("{id}")]
+		public async Task<IActionResult> PutStudent(int id, Student student)
+		{
+			if (id != student.StudentId)
+			{
+				return BadRequest();
+			}
 
-            _context.Entry(student).State = EntityState.Modified;
+			_context.Entry(student).State = EntityState.Modified;
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!StudentExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+			try
+			{
+				await _context.SaveChangesAsync();
+			}
+			catch (DbUpdateConcurrencyException)
+			{
+				if (!StudentExists(id))
+				{
+					return NotFound();
+				}
+				else
+				{
+					throw;
+				}
+			}
 
-            return NoContent();
-        }
+			return NoContent();
+		}
 
 		// POST: api/Students
 		[HttpPost]
 		public async Task<IActionResult> CreateStudent([FromBody] StudentCreateDto dto)
 		{
-			// 1. Check trùng IdentityCode
-			var exists = await _context.Students
-				.AnyAsync(st => st.IdentityCode == dto.IdentityCode);
-
-			if (exists)
+			// 1. Validate model
+			if (!ModelState.IsValid)
 			{
-				return BadRequest(ApiResponse<object>.Fail(
-					"IdentityCode đã tồn tại.",
-					new { identityCode = new[] { "IdentityCode must be unique." } }
+				var errors = ModelState
+					.Where(e => e.Value?.Errors.Count > 0)
+					.ToDictionary(
+						kvp => kvp.Key,
+						kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+					);
+				return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
+			}
+
+			// 2. Create Student and User within a transaction
+			using var transaction = await _context.Database.BeginTransactionAsync();
+			try
+			{
+				// Create Student
+				var student = dto.ToStudent();
+				_context.Students.Add(student);
+				await _context.SaveChangesAsync(); // Save to generate StudentId
+
+				// Create User
+				var user = new User
+				{
+					UserName = dto.IdentityCode,
+					Student = student
+				};
+
+				var createUserResult = await _userManager.CreateAsync(user, "User@" + dto.IdentityCode);
+				if (!createUserResult.Succeeded)
+				{
+					var errors = createUserResult.Errors
+						.GroupBy(e => e.Code)
+						.ToDictionary(
+							g => g.Key,
+							g => g.Select(e => e.Description).ToArray()
+						);
+					return BadRequest(ApiResponse<object>.Fail("Không tạo được tài khoản người dùng.", errors));
+				}
+
+				// Assign role
+				await _userManager.AddToRoleAsync(user, "Student");
+
+				// Commit transaction
+				await transaction.CommitAsync();
+
+				// 3. Return success response
+				return StatusCode(201, ApiResponse<object>.Success(
+					"Tạo student thành công.",
+					new
+					{
+						student.StudentId,
+						student.FirstName,
+						student.LastName,
+						student.IdentityCode,
+						user.Id
+					}
 				));
 			}
-
-			// 2. Tạo Student
-			var student = dto.ToStudent();
-			_context.Students.Add(student);
-			await _context.SaveChangesAsync(); // Lưu để có StudentId
-
-			// 3. Tạo User
-			var user = new User
+			catch (Exception ex)
 			{
-				UserName = dto.IdentityCode,
-				Student = student
-			};
-
-			var createUserResult = await _userManager.CreateAsync(user, "Password123@");
-			if (!createUserResult.Succeeded)
-			{
-				var errors = createUserResult.Errors
-					.GroupBy(e => e.Code)
-					.ToDictionary(
-						g => g.Key,
-						g => g.Select(e => e.Description).ToArray()
-					);
-
-				return BadRequest(ApiResponse<object>.Fail("Không tạo được tài khoản người dùng.", errors));
+				await transaction.RollbackAsync();
+				return StatusCode(500, ApiResponse<object>.Fail("An error occurred while creating the student.", null));
 			}
-
-			await _userManager.AddToRoleAsync(user, "Student");
-
-			// 4. Trả về
-			return StatusCode(201, ApiResponse<object>.Success(
-				"Tạo student thành công.",
-				new
-				{
-					student.StudentId,
-					student.FirstName,
-					student.LastName,
-					student.IdentityCode
-				}
-			));
 		}
 
 
@@ -172,9 +186,9 @@ namespace e_learning_vie.Controllers.StudentsManagement
 			));
 		}
 
-        private bool StudentExists(int id)
-        {
-            return _context.Students.Any(e => e.StudentId == id);
-        }
-    }
+		private bool StudentExists(int id)
+		{
+			return _context.Students.Any(e => e.StudentId == id);
+		}
+	}
 }
