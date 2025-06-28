@@ -10,11 +10,13 @@ using Microsoft.AspNetCore.Identity;
 using e_learning_vie.DTOs.StudentDtos;
 using e_learning_vie.Commons;
 using e_learning_vie.Utils;
+using Microsoft.AspNetCore.Authorization;
 
 namespace e_learning_vie.Controllers.StudentsManagement
 {
 	[Route("api/[controller]")]
 	[ApiController]
+	[Authorize]
 	public class StudentsController : ControllerBase
 	{
 		private readonly SchoolManagementContext _context;
@@ -27,6 +29,7 @@ namespace e_learning_vie.Controllers.StudentsManagement
 		}
 
 		// GET: api/Students
+		[Authorize(Roles = "TrainingDepartment")]
 		[HttpGet]
 		public async Task<ActionResult<PaginatedResponse<StudentListDto>>> GetStudentsBySchool(
 			[FromQuery] int? pageNumber,
