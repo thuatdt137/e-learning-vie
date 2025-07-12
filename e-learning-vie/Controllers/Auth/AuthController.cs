@@ -43,14 +43,10 @@ namespace e_learning_vie.Controllers.Auth
 			};
 
 			// check xem FE la web hay j
-			var clientPlatform = Request.Headers["X-Client-Platform"].ToString();
-			var isMobile = clientPlatform == "android";
+			//var clientPlatform = Request.Headers["X-Client-Platform"].ToString();
+			//var isWebsite = clientPlatform == "web";
 
-			if (!isMobile)
-			{
-				SetTokenCookies(accessToken, refreshToken);
-				return Ok(ApiResponse<string>.Success("Login successful (cookie mode)"));
-			}
+			SetTokenCookies(accessToken, refreshToken);
 
 			return Ok(ApiResponse<object>.Success("Login successful", response));
 		}
@@ -68,14 +64,16 @@ namespace e_learning_vie.Controllers.Auth
 
 
 			// check xem FE la web hay j
-			var clientPlatform = Request.Headers["X-Client-Platform"].ToString();
-			var isMobile = clientPlatform == "android";
+			//var clientPlatform = Request.Headers["X-Client-Platform"].ToString();
+			//var isMobile = clientPlatform == "android";
+			//var isWebsite = clientPlatform == "web";
 
-			if (!isMobile)
-			{
-				SetTokenCookies(accessToken, newRefreshToken!);
-				return Ok(ApiResponse<string>.Success("Token refreshed (cookie mode)"));
-			}
+			//if (!isMobile)
+			//{
+			//	SetTokenCookies(accessToken, refreshToken);
+			//	return Ok(ApiResponse<string>.Success("Login successful (cookie mode)"));
+			//}
+			SetTokenCookies(accessToken, refreshToken);
 
 			return Ok(ApiResponse<object>.Success("Token refreshed", new
 			{
@@ -95,17 +93,20 @@ namespace e_learning_vie.Controllers.Auth
 			var user = await _userManager.FindByIdAsync(userId);
 			if (user == null)
 				return Unauthorized(ApiResponse<object>.Fail("User not found"));
-
-			var response = new
+			AccountMeDto accountMeDto = new AccountMeDto()
 			{
 				id = user.Id,
-				email = user.Email,
-				userName = user.UserName,
-				studentId = user.StudentId,
-				teacherId = user.TeacherId
+				username = user.UserName,
+				email = user.Email
 			};
 
-			return Ok(ApiResponse<object>.Success("User info retrieved", response));
+			var roles = await _userManager.GetRolesAsync(user);
+			foreach (var role in roles)
+			{
+				accountMeDto.role = role;
+			}
+
+			return Ok(ApiResponse<AccountMeDto>.Success("User info retrieved", accountMeDto));
 		}
 
 		[HttpPost("logout")]
