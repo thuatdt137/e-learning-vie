@@ -15,10 +15,13 @@ namespace e_learning_vie.Services.Implements
         {
             try
             {
-                var principal = _context.Teachers.FirstOrDefault(p => p.TeacherId == schoolDto.PrincipalId);
-                if(principal == null)
+                if (schoolDto.PrincipalId != null)
                 {
-                    throw new KeyNotFoundException("Principal not found");
+                    var principal = _context.Teachers.FirstOrDefault(p => p.TeacherId == schoolDto.PrincipalId);
+                    if (principal == null)
+                    {
+                        throw new KeyNotFoundException("Principal not found");
+                    }
                 }
                 var school = schoolDto.ToSchool();
                 _context.Schools.Add(school);
