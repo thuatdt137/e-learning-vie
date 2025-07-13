@@ -11,7 +11,7 @@ namespace e_learning_vie.Services.Implements
         {
             _context = context;
         }
-        public SchoolDTO AddSchool(SchoolDTO schoolDto)
+        public dynamic AddSchool(SchoolDTO schoolDto)
         {
             try
             {
@@ -78,9 +78,37 @@ namespace e_learning_vie.Services.Implements
             }
         }
 
-        public SchoolDTO UpdateSchool(int id, SchoolDTO schoolDto)
+        public dynamic UpdateSchool(int id, SchoolDTO schoolDto)
         {
-            throw new NotImplementedException();
+            if(id != schoolDto.SchoolId)
+            {
+                throw new ArgumentException("School ID mismatch");
+            }
+            try
+            {
+                var school = _context.Schools.FirstOrDefault(s => s.SchoolId == id);
+                if(school == null)
+                {
+                    throw new KeyNotFoundException("School not found");
+                }
+                var principal = _context.Teachers.FirstOrDefault(p => p.TeacherId == schoolDto.PrincipalId);
+                if(principal == null)
+                {
+                    throw new KeyNotFoundException("Principal not found");
+                }
+                school.SchoolName = schoolDto.SchoolName;
+                school.SchoolType = schoolDto.SchoolType;
+                school.Address = schoolDto.Address;
+                school.Phone = schoolDto.Phone;
+                school.Email = schoolDto.Email;
+                school.PrincipalId = schoolDto.PrincipalId;
+                _context.SaveChanges();
+                return new SchoolDTO(school);
+            }
+            catch
+            {
+                throw;
+            }
         }
     }
 }

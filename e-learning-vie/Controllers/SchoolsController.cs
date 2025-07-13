@@ -47,6 +47,8 @@ namespace e_learning_vie.Controllers
                                                   s.Email.Contains(keyWord, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
 
+                var totalItems = schools.Count;
+
                 schools = schools
                     .Skip((effectivePageNumber - 1) * effectivePageSize)
                     .Take(effectivePageSize)
@@ -55,7 +57,7 @@ namespace e_learning_vie.Controllers
                 {
                     return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No schools found!"));
                 }
-                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", schools));
+                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", new PaginatedResponse<SchoolDTO>(schools, totalItems, effectivePageNumber, effectivePageSize)));
             }
             catch(Exception ex)
             {
