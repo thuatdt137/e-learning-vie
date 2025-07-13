@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,7 +64,17 @@ builder.Services.AddProblemDetails();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddCors();
+builder.Services.AddCors(options =>
+{
+	options.AddDefaultPolicy(policy =>
+	{
+		policy.WithOrigins("http://localhost:5173") // URL frontend
+			  .AllowAnyHeader()
+			  .AllowAnyMethod()
+			  .AllowCredentials(); // Nếu dùng cookie / token
+	});
+});
+
 
 builder.Services.AddAuthorization();
 builder.Services.AddAuthentication(options =>
@@ -126,12 +137,13 @@ if (app.Environment.IsDevelopment())
 	app.UseSwaggerUI();
 }
 
-app.UseCors(c =>
-{
-	c.AllowAnyHeader();
-	c.AllowCredentials();
-	c.AllowAnyMethod();
-});
+app.UseCors(policy => policy
+	.WithOrigins("http://localhost:5173")
+	.AllowAnyHeader()
+	.AllowAnyMethod()
+	.AllowCredentials()
+);
+
 
 app.UseHttpsRedirection();
 

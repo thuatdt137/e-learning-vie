@@ -74,16 +74,19 @@ namespace e_learning_vie.Controllers.StudentsManagement
 
 		// GET: api/Students/5
 		[HttpGet("{id}")]
-		public async Task<ActionResult<Student>> GetStudentById(int id)
+		public async Task<ActionResult<StudentDetailsDto>> GetStudentById(int id)
 		{
 			var student = await _context.Students.FindAsync(id);
 
 			if (student == null)
 			{
-				return NotFound();
-			}
+				return NotFound(ApiResponse<object>.Fail("Wrong Id or Student not found."));
+            }
 
-			return Ok(student);
+            StudentDetailsDto studentDetailsDto = new StudentDetailsDto(student);
+
+
+            return Ok(ApiResponse<StudentDetailsDto>.Success("Get student successfully", studentDetailsDto));
 		}
 
 		// PUT: api/Students/5
@@ -116,8 +119,9 @@ namespace e_learning_vie.Controllers.StudentsManagement
 			return NoContent();
 		}
 
-		// POST: api/Students
-		[HttpPost]
+        // POST: api/Students
+        [Authorize(Roles = "TrainingDepartment")]
+        [HttpPost]
 		public async Task<IActionResult> CreateStudent([FromBody] StudentCreateDto dto)
 		{
 			// 1. Validate model

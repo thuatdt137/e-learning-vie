@@ -11,6 +11,10 @@ public partial class StudentClassHistory
 
     public int? ClassId { get; set; }
 
+    public string? ClassName { get; set; }
+
+    public string? SchoolName { get; set; }
+
     public int? AcademicYearId { get; set; }
 
     public DateOnly? StartDate { get; set; }

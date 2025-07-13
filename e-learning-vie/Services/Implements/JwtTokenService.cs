@@ -23,7 +23,7 @@ namespace e_learning_vie.Services.Implements
 		{
 			var claims = new List<Claim>
 			{
-				new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
+				new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
 				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
 				new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
 			};
@@ -43,7 +43,7 @@ namespace e_learning_vie.Services.Implements
 
 			var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
 			var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-			var expires = DateTime.UtcNow.AddMinutes(30);
+			var expires = DateTime.UtcNow.AddMinutes(2);
 
 			var token = new JwtSecurityToken(
 				claims: claims,
