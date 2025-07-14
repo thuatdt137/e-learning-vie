@@ -39,5 +39,20 @@ namespace e_learning_vie.DTOs.StudentDtos
             this.ClassId = student.ClassId;
             this.SchoolId = student.SchoolId;
         }
+
+        public static Student map2Student(StudentDetailsDto dto, Student student)
+        {
+            student.StudentId = dto.StudentId;
+            student.IdentityCode = dto.IdentityCode;
+            student.FirstName = dto.FirstName;
+            student.LastName = dto.LastName;
+            student.DateOfBirth = dto.DateOfBirth;
+            student.Address = dto.Address;
+            student.Phone = dto.Phone;
+            student.Email = dto.Email;
+            student.ClassId = dto.ClassId;
+            student.SchoolId = dto.SchoolId;
+            return student;
+        }
     }
 }

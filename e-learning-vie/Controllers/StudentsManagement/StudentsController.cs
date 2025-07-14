@@ -14,217 +14,229 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace e_learning_vie.Controllers.StudentsManagement
 {
-	[Route("api/[controller]")]
-	[ApiController]
-	[Authorize]
-	public class StudentsController : ControllerBase
-	{
-		private readonly SchoolManagementContext _context;
-		private readonly UserManager<User> _userManager;
+    [Route("api/[controller]")]
+    [ApiController]
+    //[Authorize]
+    public class StudentsController : ControllerBase
+    {
+        private readonly SchoolManagementContext _context;
+        private readonly UserManager<User> _userManager;
 
-		public StudentsController(SchoolManagementContext context, UserManager<User> userManager)
-		{
-			_context = context;
-			_userManager = userManager;
-		}
+        public StudentsController(SchoolManagementContext context, UserManager<User> userManager)
+        {
+            _context = context;
+            _userManager = userManager;
+        }
 
-		// GET: api/Students
-		[Authorize(Roles = "TrainingDepartment")]
-		[HttpGet]
-		public async Task<ActionResult<PaginatedResponse<StudentListDto>>> GetStudentsBySchool(
-			[FromQuery] int? pageNumber,
-			[FromQuery] int? pageSize)
-		{
-			// Get validated pagination parameters
-			var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+        // GET: api/Students
+        //[Authorize(Roles = "TrainingDepartment")]
+        [HttpGet]
+        public async Task<ActionResult<PaginatedResponse<StudentListDto>>> GetStudentsBySchool(
+            [FromQuery] int? pageNumber,
+            [FromQuery] int? pageSize)
+        {
+            // Get validated pagination parameters
+            var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
 
-			// Get total count
-			var totalItems = await _context.Students.CountAsync();
+            // Get total count
+            var totalItems = await _context.Students.CountAsync();
 
-			// Get paginated data
-			var students = await _context.Students
-				.AsNoTracking()
-				.Select(s => new StudentListDto
-				{
-					StudentId = s.StudentId,
-					IdentityCode = s.IdentityCode,
-					FirstName = s.FirstName,
-					LastName = s.LastName,
-					ClassId = s.ClassId,
-					SchoolId = s.SchoolId
-				})
-				.OrderBy(s => s.StudentId) // Optional: Add sorting for consistent results
-				.Skip((effectivePageNumber - 1) * effectivePageSize)
-				.Take(effectivePageSize)
-				.ToListAsync();
+            // Get paginated data
+            var students = await _context.Students
+                .AsNoTracking()
+                .Select(s => new StudentListDto
+                {
+                    StudentId = s.StudentId,
+                    IdentityCode = s.IdentityCode,
+                    FirstName = s.FirstName,
+                    LastName = s.LastName,
+                    ClassId = s.ClassId,
+                    SchoolId = s.SchoolId
+                })
+                .OrderBy(s => s.StudentId) // Optional: Add sorting for consistent results
+                .Skip((effectivePageNumber - 1) * effectivePageSize)
+                .Take(effectivePageSize)
+                .ToListAsync();
 
-			// Create paginated response
-			var response = new PaginatedResponse<StudentListDto>(
-				items: students,
-				totalItems: totalItems,
-				pageNumber: effectivePageNumber,
-				pageSize: effectivePageSize
-			);
+            // Create paginated response
+            var response = new PaginatedResponse<StudentListDto>(
+                items: students,
+                totalItems: totalItems,
+                pageNumber: effectivePageNumber,
+                pageSize: effectivePageSize
+            );
 
-			return Ok(ApiResponse<PaginatedResponse<StudentListDto>>.Success(
-				"Danh sách student",
-				response
-			));
-		}
+            return Ok(ApiResponse<PaginatedResponse<StudentListDto>>.Success(
+                "Danh sách student",
+                response
+            ));
+        }
 
-		// GET: api/Students/5
-		[HttpGet("{id}")]
-		public async Task<ActionResult<StudentDetailsDto>> GetStudentById(int id)
-		{
-			var student = await _context.Students.FindAsync(id);
+        // GET: api/Students/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<StudentDetailsDto>> GetStudentById(int id)
+        {
+            var student = await _context.Students.FindAsync(id);
 
-			if (student == null)
-			{
-				return NotFound(ApiResponse<object>.Fail("Wrong Id or Student not found."));
+            if (student == null)
+            {
+                return NotFound(ApiResponse<object>.Fail("Wrong Id or Student not found."));
             }
 
             StudentDetailsDto studentDetailsDto = new StudentDetailsDto(student);
 
 
             return Ok(ApiResponse<StudentDetailsDto>.Success("Get student successfully", studentDetailsDto));
-		}
+        }
 
-		// PUT: api/Students/5
-		[HttpPut("{id}")]
-		public async Task<IActionResult> PutStudent(int id, Student student)
-		{
-			if (id != student.StudentId)
-			{
-				return BadRequest();
-			}
+        // PUT: api/Students/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutStudent(int id, [FromBody] StudentDetailsDto dto)
+        {
+            if (id != dto.StudentId)
+            {
+                return BadRequest(ApiResponse<object>.Fail("ID mismatch between route and payload."));
+            }
 
-			_context.Entry(student).State = EntityState.Modified;
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value?.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
+            }
 
-			try
-			{
-				await _context.SaveChangesAsync();
-			}
-			catch (DbUpdateConcurrencyException)
-			{
-				if (!StudentExists(id))
-				{
-					return NotFound();
-				}
-				else
-				{
-					throw;
-				}
-			}
+            var student = await _context.Students.FindAsync(id);
+            if (student == null)
+            {
+                return NotFound(ApiResponse<object>.Fail($"Student with ID {id} not found."));
+            }
+            try
+            {
+                student = StudentDetailsDto.map2Student(dto, student);
 
-			return NoContent();
-		}
+                await _context.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Success("Save student successfully"));
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Fail($"Database update error: {ex.Message}"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Fail($"Unexpected error: {ex.Message}"));
+            }
+        }
 
         // POST: api/Students
         [Authorize(Roles = "TrainingDepartment")]
         [HttpPost]
-		public async Task<IActionResult> CreateStudent([FromBody] StudentCreateDto dto)
-		{
-			// 1. Validate model
-			if (!ModelState.IsValid)
-			{
-				var errors = ModelState
-					.Where(e => e.Value?.Errors.Count > 0)
-					.ToDictionary(
-						kvp => kvp.Key,
-						kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-					);
-				return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
-			}
+        public async Task<IActionResult> CreateStudent([FromBody] StudentCreateDto dto)
+        {
+            // 1. Validate model
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value?.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
+            }
 
-			// 2. Create Student and User within a transaction
-			using var transaction = await _context.Database.BeginTransactionAsync();
-			try
-			{
-				// Create Student
-				var student = dto.ToStudent();
-				_context.Students.Add(student);
-				await _context.SaveChangesAsync(); // Save to generate StudentId
+            // 2. Create Student and User within a transaction
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Create Student
+                var student = dto.ToStudent();
+                _context.Students.Add(student);
+                await _context.SaveChangesAsync(); // Save to generate StudentId
 
-				// Create User
-				var user = new User
-				{
-					UserName = dto.IdentityCode,
-					Student = student
-				};
+                // Create User
+                var user = new User
+                {
+                    UserName = dto.IdentityCode,
+                    Student = student
+                };
 
-				var createUserResult = await _userManager.CreateAsync(user, "User@" + dto.IdentityCode);
-				if (!createUserResult.Succeeded)
-				{
-					var errors = createUserResult.Errors
-						.GroupBy(e => e.Code)
-						.ToDictionary(
-							g => g.Key,
-							g => g.Select(e => e.Description).ToArray()
-						);
-					return BadRequest(ApiResponse<object>.Fail("Không tạo được tài khoản người dùng.", errors));
-				}
+                var createUserResult = await _userManager.CreateAsync(user, "User@" + dto.IdentityCode);
+                if (!createUserResult.Succeeded)
+                {
+                    var errors = createUserResult.Errors
+                        .GroupBy(e => e.Code)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.Select(e => e.Description).ToArray()
+                        );
+                    return BadRequest(ApiResponse<object>.Fail("Không tạo được tài khoản người dùng.", errors));
+                }
 
-				// Assign role
-				await _userManager.AddToRoleAsync(user, "Student");
+                // Assign role
+                await _userManager.AddToRoleAsync(user, "Student");
 
-				// Commit transaction
-				await transaction.CommitAsync();
+                // Commit transaction
+                await transaction.CommitAsync();
 
-				// 3. Return success response
-				return StatusCode(201, ApiResponse<object>.Success(
-					"Tạo student thành công.",
-					new
-					{
-						student.StudentId,
-						student.FirstName,
-						student.LastName,
-						student.IdentityCode,
-						user.Id
-					}
-				));
-			}
-			catch (Exception ex)
-			{
-				await transaction.RollbackAsync();
-				return StatusCode(500, ApiResponse<object>.Fail("An error occurred while creating the student.", null));
-			}
-		}
+                // 3. Return success response
+                return StatusCode(201, ApiResponse<object>.Success(
+                    "Tạo student thành công.",
+                    new
+                    {
+                        student.StudentId,
+                        student.FirstName,
+                        student.LastName,
+                        student.IdentityCode,
+                        user.Id
+                    }
+                ));
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, ApiResponse<object>.Fail("An error occurred while creating the student.", null));
+            }
+        }
 
 
-		[HttpGet("test-cause-error")]
-		public IActionResult CauseError()
-		{
-			int a = 0;
-			int result = 1 / a;
+        [HttpGet("test-cause-error")]
+        public IActionResult CauseError()
+        {
+            int a = 0;
+            int result = 1 / a;
 
-			return Ok(result);
-		}
+            return Ok(result);
+        }
 
-		[HttpGet("by-school/{schoolId}")]
-		public async Task<IActionResult> GetStudentsBySchool(int schoolId)
-		{
-			var students = await _context.Students
-				.Where(s => s.SchoolId == schoolId)
-				.Select(s => new StudentListDto
-				{
-					StudentId = s.StudentId,
-					IdentityCode = s.IdentityCode,
-					FirstName = s.FirstName,
-					LastName = s.LastName,
-					SchoolId = s.SchoolId,
-					ClassId = s.ClassId
-				})
-				.ToListAsync();
+        [HttpGet("by-school/{schoolId}")]
+        public async Task<IActionResult> GetStudentsBySchool(int schoolId)
+        {
+            var students = await _context.Students
+                .Where(s => s.SchoolId == schoolId)
+                .Select(s => new StudentListDto
+                {
+                    StudentId = s.StudentId,
+                    IdentityCode = s.IdentityCode,
+                    FirstName = s.FirstName,
+                    LastName = s.LastName,
+                    SchoolId = s.SchoolId,
+                    ClassId = s.ClassId
+                })
+                .ToListAsync();
 
-			return Ok(ApiResponse<List<StudentListDto>>.Success(
-				$"Danh sách học sinh của trường {schoolId}",
-				students
-			));
-		}
+            return Ok(ApiResponse<List<StudentListDto>>.Success(
+                $"Danh sách học sinh của trường {schoolId}",
+                students
+            ));
+        }
 
-		private bool StudentExists(int id)
-		{
-			return _context.Students.Any(e => e.StudentId == id);
-		}
-	}
+        private bool StudentExists(int id)
+        {
+            return _context.Students.Any(e => e.StudentId == id);
+        }
+    }
 }

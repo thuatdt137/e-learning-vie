@@ -41,10 +41,14 @@ namespace e_learning_vie.Controllers.ClassesManagement
                     classes = classes.Where(s => s.ClassName.Contains(keyWord, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
 
-                classes = classes
+                if (pageSize != null && pageNumber != null )
+                {
+                    classes = classes
                     .Skip((effectivePageNumber - 1) * effectivePageSize)
                     .Take(effectivePageSize)
                     .ToList();
+                }
+                
                 if (classes == null || !classes.Any())
                 {
                     return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No classes found!"));
