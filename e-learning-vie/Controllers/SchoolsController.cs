@@ -28,7 +28,7 @@ namespace e_learning_vie.Controllers
         {
             try
             {
-                var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+
 
                 schoolType = schoolType?.Trim() ?? "";
                 keyWord = keyWord?.Trim() ?? "";
@@ -49,15 +49,25 @@ namespace e_learning_vie.Controllers
 
                 var totalItems = schools.Count;
 
-                schools = schools
-                    .Skip((effectivePageNumber - 1) * effectivePageSize)
-                    .Take(effectivePageSize)
-                    .ToList();
+                if(!pageNumber.HasValue || !pageSize.HasValue)
+                {
+                    var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+                    schools = schools
+                        .Skip((effectivePageNumber - 1) * effectivePageSize)
+                        .Take(effectivePageSize)
+                        .ToList();
+                    if(schools != null)
+                    {
+                        return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", new PaginatedResponse<SchoolDTO>(schools, totalItems, effectivePageNumber, effectivePageSize)));
+                    }
+                }
                 if(schools == null || !schools.Any())
                 {
                     return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No schools found!"));
                 }
-                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", new PaginatedResponse<SchoolDTO>(schools, totalItems, effectivePageNumber, effectivePageSize)));
+
+                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", schools));
+
             }
             catch(Exception ex)
             {
