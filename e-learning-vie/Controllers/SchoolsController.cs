@@ -49,7 +49,7 @@ namespace e_learning_vie.Controllers
 
                 var totalItems = schools.Count;
 
-                if(!pageNumber.HasValue || !pageSize.HasValue)
+                if(pageNumber.HasValue || pageSize.HasValue)
                 {
                     var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
                     schools = schools
