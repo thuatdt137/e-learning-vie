@@ -1,4 +1,4 @@
-﻿using e_learning_vie.ModelsDTO.Student;
+﻿using e_learning_vie.DTOs.Student;
 using System.Security.Claims;
 
 namespace e_learning_vie.Services.Interfaces

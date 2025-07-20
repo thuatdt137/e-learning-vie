@@ -1,5 +1,5 @@
-﻿using e_learning_vie.Models;
-using e_learning_vie.ModelsDTO.Student;
+﻿using e_learning_vie.DTOs.Student;
+using e_learning_vie.Models;
 using e_learning_vie.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;

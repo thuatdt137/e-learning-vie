@@ -1,4 +1,4 @@
-﻿namespace e_learning_vie.ModelsDTO.Student
+﻿namespace e_learning_vie.DTOs.Student
 {
     public class StudentGradeDto
     {

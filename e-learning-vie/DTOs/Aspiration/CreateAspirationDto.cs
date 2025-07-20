@@ -1,6 +1,6 @@
 ﻿using e_learning_vie.Enums;
 
-namespace e_learning_vie.ModelsDTO.Aspiration
+namespace e_learning_vie.DTOs.Aspiration
 {
     public class StudentAspirationDto
     {

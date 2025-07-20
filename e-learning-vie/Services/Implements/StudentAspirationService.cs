@@ -1,6 +1,6 @@
-﻿using e_learning_vie.Enums;
+﻿using e_learning_vie.DTOs.Aspiration;
+using e_learning_vie.Enums;
 using e_learning_vie.Models;
-using e_learning_vie.ModelsDTO.Aspiration;
 using e_learning_vie.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
