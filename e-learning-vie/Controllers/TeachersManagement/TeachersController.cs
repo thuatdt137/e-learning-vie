@@ -6,12 +6,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
+using e_learning_vie.DTOs.School;
 
 namespace e_learning_vie.Controllers.TeachersManagement
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class TeacherController : ControllerBase
     {
         private readonly SchoolManagementContext _context;
@@ -22,21 +23,18 @@ namespace e_learning_vie.Controllers.TeachersManagement
         }
 
         // GET: api/Teacher
-        [Authorize(Roles = "MinistryOfEducation")]
+        //[Authorize(Roles = "MinistryOfEducation")]
         [HttpGet]
-        public async Task<ActionResult<PaginatedResponse<TeachersDto>>> GetTeachers(
+        public async Task<ActionResult> GetTeachers(
             [FromQuery] int? pageNumber,
-            [FromQuery] int? pageSize)
+            [FromQuery] int? pageSize,
+            [FromQuery] string? keyWord)
         {
-            var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+            try
+            {
+                keyWord = keyWord?.Trim() ?? "";
 
-            var totalItems = await _context.Teachers.CountAsync();
-
-            var teachers = await _context.Teachers
-                .AsNoTracking()
-                .OrderBy(t => t.TeacherId)
-                .Skip((effectivePageNumber - 1) * effectivePageSize)
-                .Take(effectivePageSize)
+                var teachers = await _context.Teachers
                 .Select(t => new TeachersDto
                 {
                     TeacherId = t.TeacherId,
@@ -50,17 +48,41 @@ namespace e_learning_vie.Controllers.TeachersManagement
                 })
                 .ToListAsync();
 
-            var response = new PaginatedResponse<TeachersDto>(
-                items: teachers,
-                totalItems: totalItems,
-                pageNumber: effectivePageNumber,
-                pageSize: effectivePageSize
-            );
+                if (!string.IsNullOrEmpty(keyWord))
+                {
+                    teachers = teachers.Where(s => s.FirstName.Contains(keyWord, StringComparison.OrdinalIgnoreCase) ||
+                                                  s.LastName.Contains(keyWord, StringComparison.OrdinalIgnoreCase) ||
+                                                  s.Address.Contains(keyWord, StringComparison.OrdinalIgnoreCase) ||
+                                                  s.Phone.Contains(keyWord, StringComparison.OrdinalIgnoreCase) ||
+                                                  s.Email.Contains(keyWord, StringComparison.OrdinalIgnoreCase)).ToList();
+                }
 
-            return Ok(ApiResponse<PaginatedResponse<TeachersDto>>.Success(
-                "Danh sách giáo viên",
-                response
-            ));
+                if (pageNumber.HasValue || pageSize.HasValue)
+                {
+                    var totalItems = await _context.Teachers.CountAsync();
+
+                    var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+                    teachers = teachers
+                        .Skip((effectivePageNumber - 1) * effectivePageSize)
+                        .Take(effectivePageSize)
+                        .ToList();
+                    if (teachers != null)
+                    {
+                        return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get teachers list success", new PaginatedResponse<TeachersDto>(teachers, totalItems, effectivePageNumber, effectivePageSize)));
+                    }
+                }
+
+                if (teachers == null || !teachers.Any())
+                {
+                    return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No teacher found!"));
+                }
+                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get teacher list success", teachers));
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred {ex.Message}"));
+            }
         }
 
         // GET: api/Teacher/5
@@ -88,7 +110,7 @@ namespace e_learning_vie.Controllers.TeachersManagement
 
         // POST: api/Teacher
         [HttpPost]
-        [Authorize(Roles = "MinistryOfEducation")]
+        //[Authorize(Roles = "MinistryOfEducation")]
         public async Task<IActionResult> CreateTeacher([FromBody] CreateTeacherDto dto)
         {
             if (!ModelState.IsValid)
@@ -147,7 +169,7 @@ namespace e_learning_vie.Controllers.TeachersManagement
 
         // PUT: api/Teacher/5
         [HttpPut("{id}")]
-        [Authorize(Roles = "MinistryOfEducation")]
+        //[Authorize(Roles = "MinistryOfEducation")]
         public async Task<IActionResult> UpdateTeacher(int id, [FromBody] TeachersDto dto)
         {
             if (id != dto.TeacherId)
@@ -181,7 +203,7 @@ namespace e_learning_vie.Controllers.TeachersManagement
 
         // DELETE: api/Teacher/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "MinistryOfEducation")]
+        //[Authorize(Roles = "MinistryOfEducation")]
         public async Task<IActionResult> DeleteTeacher(int id)
         {
             var teacher = await _context.Teachers.FindAsync(id);
