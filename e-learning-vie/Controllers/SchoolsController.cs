@@ -124,6 +124,39 @@ namespace e_learning_vie.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred: {ex.Message}"));
             }
         }
+        [HttpPut("{id}")]
+        public IActionResult UpdateSchool([FromBody] SchoolDTO schoolDto, int id)
+        {
+
+            if(schoolDto == null)
+            {
+                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data."));
+            }
+            if(!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors
+                        .Select(e => e.ErrorMessage).ToArray()
+                    );
+                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data.", errors));
+            }
+            try
+            {
+                var updatedSchool = _schoolService.UpdateSchool(id, schoolDto);
+                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("School updated successfully", updatedSchool));
+            }
+            catch(KeyNotFoundException knfEx)
+            {
+                return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Error(knfEx.Message));
+            }
+            catch(Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred: {ex.Message}"));
+            }
+        }
 
     }
 }
