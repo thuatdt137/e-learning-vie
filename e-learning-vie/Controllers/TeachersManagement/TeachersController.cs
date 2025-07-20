@@ -202,9 +202,9 @@ namespace e_learning_vie.Controllers.TeachersManagement
         }
 
         // DELETE: api/Teacher/5
-        [HttpDelete("{id}")]
+        //[HttpDelete("{id}")]
         //[Authorize(Roles = "MinistryOfEducation")]
-        public async Task<IActionResult> DeleteTeacher(int id)
+        /*public async Task<IActionResult> DeleteTeacher(int id)
         {
             var teacher = await _context.Teachers.FindAsync(id);
             if (teacher == null)
@@ -214,7 +214,7 @@ namespace e_learning_vie.Controllers.TeachersManagement
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
+        }*/
 
         // GET: api/Teacher/by-school/3
         [HttpGet("by-school/{schoolId}")]
