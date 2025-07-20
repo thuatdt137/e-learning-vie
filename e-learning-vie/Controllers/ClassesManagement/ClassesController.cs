@@ -6,6 +6,8 @@ using e_learning_vie.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using e_learning_vie.DTOs.classes;
+using Microsoft.EntityFrameworkCore;
+using static e_learning_vie.DTOs.classes.ClassListDto;
 
 namespace e_learning_vie.Controllers.ClassesManagement
 {
@@ -58,6 +60,107 @@ namespace e_learning_vie.Controllers.ClassesManagement
             catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred {ex.Message}"));
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateClass([FromBody] ClassCreateDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value?.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
+            }
+
+            try
+            {
+                // Kiểm tra trùng tên lớp
+                bool isDuplicate = await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName);
+                if (isDuplicate)
+                {
+                    return Conflict(ApiResponse<object>.Fail($"Tên lớp '{dto.ClassName}' đã tồn tại."));
+                }
+
+                var newClass = new Class
+                {
+                    ClassName = dto.ClassName,
+                    AcademicYearId = dto.AcademicYearId,
+                    TeacherId = dto.TeacherId,
+                    SchoolId = dto.SchoolId
+                };
+
+                _context.Classes.Add(newClass);
+                await _context.SaveChangesAsync();
+
+                var resultDto = new ClassDetailsDto
+                {
+                    ClassId = newClass.ClassId,
+                    ClassName = newClass.ClassName,
+                    AcademicYearId = newClass.AcademicYearId,
+                    TeacherId = newClass.TeacherId,
+                    SchoolId = newClass.SchoolId
+                };
+
+                return StatusCode(201, ApiResponse<object>.Success("Tạo lớp thành công.", resultDto));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Fail("An error occurred while creating the class.", new { ex.Message }));
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateClass(int id, [FromBody] ClassDetailsDto dto)
+        {
+            if (id != dto.ClassId)
+            {
+                return BadRequest(ApiResponse<object>.Fail("ID mismatch between route and payload."));
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value?.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
+            }
+
+            var existingClass = await _context.Classes.FindAsync(id);
+            if (existingClass == null)
+            {
+                return NotFound(ApiResponse<object>.Fail($"Class with ID {id} not found."));
+            }
+
+            try
+            {
+                //Kiểm tra trùng tên lớp (loại trừ chính bản thân lớp đang cập nhật)
+                bool isDuplicate = await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName && c.ClassId != id);
+                if (isDuplicate)
+                {
+                    return Conflict(ApiResponse<object>.Fail($"Tên lớp '{dto.ClassName}' đã tồn tại."));
+                }
+
+                existingClass = ClassDetailsDto.map2Class(dto, existingClass);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(ApiResponse<object>.Success("Cập nhật lớp thành công."));
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Fail($"Database update error: {ex.Message}"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Fail($"Unexpected error: {ex.Message}"));
             }
         }
     }
