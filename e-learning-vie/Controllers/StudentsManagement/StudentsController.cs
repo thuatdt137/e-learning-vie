@@ -12,6 +12,9 @@ using e_learning_vie.Commons;
 using e_learning_vie.Utils;
 using Microsoft.AspNetCore.Authorization;
 using OfficeOpenXml;
+using System.Globalization;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Text;
 
 namespace e_learning_vie.Controllers.StudentsManagement
 {
@@ -241,116 +244,107 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         //Import Excel
-        [HttpPost("import-excel")]
-        [Authorize(Roles = "TrainingDepartment")]
-        [Consumes("multipart/form-data")]
-        public async Task<IActionResult> ImportStudentsFromExcel([FromForm] IFormFile file)
+        [HttpPost("import-students")]
+        public async Task<IActionResult> ImportStudentsFromExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)
+                return BadRequest(ApiResponse<object>.Fail("File không hợp lệ.", null));
+
+            var studentDtos = new List<StudentImportDto>();
+            var errorLog = new StringBuilder();
+
+            using (var stream = new MemoryStream())
             {
-                return BadRequest(ApiResponse<object>.Fail("File không hợp lệ hoặc rỗng.", null));
+                await file.CopyToAsync(stream);
+                stream.Position = 0;
+
+                using var package = new ExcelPackage(stream);
+                var worksheet = package.Workbook.Worksheets.FirstOrDefault();
+                if (worksheet == null)
+                    return BadRequest(ApiResponse<object>.Fail("Không tìm thấy worksheet.", null));
+
+                int rowCount = worksheet.Dimension.Rows;
+
+                for (int row = 2; row <= rowCount; row++)
+                {
+                    try
+                    {
+                        string dobText = worksheet.Cells[row, 5].Text;
+                        DateOnly? dateOfBirth = null;
+                        if (!string.IsNullOrWhiteSpace(dobText) && DateTime.TryParse(dobText, out var dob))
+                        {
+                            dateOfBirth = DateOnly.FromDateTime(dob);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(dobText))
+                        {
+                            errorLog.AppendLine($"Dòng {row}: Ngày sinh không hợp lệ - '{dobText}'.");
+                            continue;
+                        }
+
+                        var dto = new StudentImportDto
+                        {
+                            IdentityCode = worksheet.Cells[row, 2].Text,
+                            FirstName = worksheet.Cells[row, 3].Text,
+                            LastName = worksheet.Cells[row, 4].Text,
+                            DateOfBirth = dateOfBirth, 
+                            Address = worksheet.Cells[row, 6].Text,
+                            Phone = worksheet.Cells[row, 7].Text,
+                            Email = worksheet.Cells[row, 8].Text,
+                            ClassId = int.TryParse(worksheet.Cells[row, 9].Text, out var classId) ? classId : null,
+                            SchoolId = int.TryParse(worksheet.Cells[row, 10].Text, out var schoolId) ? schoolId : null
+                        };
+
+                        if (string.IsNullOrWhiteSpace(dto.FirstName) ||
+                            string.IsNullOrWhiteSpace(dto.LastName) ||
+                            dto.DateOfBirth == null)
+                        {
+                            errorLog.AppendLine($"Dòng {row}: Thiếu thông tin bắt buộc.");
+                            continue;
+                        }
+
+                        studentDtos.Add(dto);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorLog.AppendLine($"Dòng {row}: Lỗi không xác định - {ex.Message}");
+                        continue;
+                    }
+                }
             }
 
-            var studentsToAdd = new List<Student>();
-            var rowErrors = new List<string>();
+            if (studentDtos.Count == 0)
+            {
+                var errorMessage = "Không có dữ liệu hợp lệ để import.";
+                return BadRequest(ApiResponse<object>.Fail(errorMessage, new { Errors = errorLog.ToString() }));
+            }
+
+            var students = studentDtos.Select(dto => new Student
+            {
+                IdentityCode = dto.IdentityCode,
+                FirstName = dto.FirstName,
+                LastName = dto.LastName,
+                DateOfBirth = dto.DateOfBirth,
+                Address = dto.Address,
+                Phone = dto.Phone,
+                Email = dto.Email,
+                ClassId = dto.ClassId,
+                SchoolId = dto.SchoolId
+            }).ToList();
 
             try
             {
-                using (var stream = new MemoryStream())
-                {
-                    await file.CopyToAsync(stream);
-                    stream.Position = 0;
-
-                    using var package = new ExcelPackage(stream);
-                    var worksheet = package.Workbook.Worksheets.FirstOrDefault();
-
-                    if (worksheet == null)
-                    {
-                        return BadRequest(ApiResponse<object>.Fail("Không tìm thấy worksheet trong file.", null));
-                    }
-
-                    int totalRows = worksheet.Dimension.Rows;
-
-                    // Lấy danh sách IdentityCode đã tồn tại để tránh trùng
-                    var existingIdentityCodes = _context.Students
-                        .Select(s => s.IdentityCode)
-                        .ToHashSet();
-
-                    for (int row = 2; row <= totalRows; row++) 
-                    {
-                        try
-                        {
-                            // Bỏ qua dòng trắng
-                            bool isRowEmpty = Enumerable.Range(1, 5)
-                                .All(col => string.IsNullOrWhiteSpace(worksheet.Cells[row, col].Text));
-
-                            if (isRowEmpty)
-                            {
-                                continue;
-                            }
-
-                            string identityCode = worksheet.Cells[row, 1].Text?.Trim();
-                            string firstName = worksheet.Cells[row, 2].Text?.Trim();
-                            string lastName = worksheet.Cells[row, 3].Text?.Trim();
-                            int? classId = int.TryParse(worksheet.Cells[row, 4].Text, out int cid) ? cid : (int?)null;
-                            int? schoolId = int.TryParse(worksheet.Cells[row, 5].Text, out int sid) ? sid : (int?)null;
-
-                            // Kiểm tra dữ liệu bắt buộc
-                            if (string.IsNullOrEmpty(identityCode))
-                            {
-                                rowErrors.Add($"Dòng {row}: Thiếu IdentityCode.");
-                                continue;
-                            }
-
-                            if (existingIdentityCodes.Contains(identityCode))
-                            {
-                                rowErrors.Add($"Dòng {row}: IdentityCode '{identityCode}' đã tồn tại.");
-                                continue;
-                            }
-
-                            var student = new Student
-                            {
-                                IdentityCode = identityCode,
-                                FirstName = firstName,
-                                LastName = lastName,
-                                ClassId = classId,
-                                SchoolId = schoolId
-                            };
-
-                            studentsToAdd.Add(student);
-                        }
-                        catch (Exception ex)
-                        {
-                            rowErrors.Add($"Dòng {row}: Lỗi không xác định ({ex.Message}).");
-                            continue;
-                        }
-                    }
-                }
-
-                if (studentsToAdd.Count == 0)
-                {
-                    return BadRequest(ApiResponse<object>.Fail("Không có dữ liệu hợp lệ để import.", new { Errors = rowErrors }));
-                }
-
-                // Lưu vào DB
-                await _context.Students.AddRangeAsync(studentsToAdd);
+                await _context.Students.AddRangeAsync(students);
                 await _context.SaveChangesAsync();
-
-                var response = new
-                {
-                    SuccessCount = studentsToAdd.Count,
-                    ErrorCount = rowErrors.Count,
-                    Errors = rowErrors
-                };
-
-                return Ok(ApiResponse<object>.Success($"{studentsToAdd.Count} học sinh đã được import thành công.", response));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ApiResponse<object>.Fail($"Lỗi trong quá trình import: {ex.Message}", null));
+                var errorMessage = ex.InnerException?.Message ?? ex.Message;
+                return StatusCode(500, ApiResponse<object>.Fail("Lỗi khi lưu vào cơ sở dữ liệu.", errorMessage));
             }
-        }
 
+            var message = $"Đã import {students.Count} học sinh thành công.";
+            return Ok(ApiResponse<object>.Success(message, new { Errors = errorLog.ToString() }));
+        }
 
     }
 }

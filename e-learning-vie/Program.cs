@@ -12,6 +12,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,7 +48,6 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 builder.Services.AddHttpContextAccessor();
 
 
-
 // logging
 builder.Services.AddLogging(logging =>
 {
@@ -63,7 +63,14 @@ builder.Services.AddProblemDetails();
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+//excel
+builder.Services.AddSwaggerGen(options =>
+{
+    options.OperationFilter<SwaggerFileOperationFilter>();
+});
+
+
 builder.Services.AddCors(options =>
 {
 	options.AddDefaultPolicy(policy =>
