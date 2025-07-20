@@ -16,10 +16,10 @@ namespace e_learning_vie.DTOs.StudentDtos
 		[StringLength(50, ErrorMessage = "Last name must be less than 50 characters.")]
 		public string LastName { get; set; } = null!;
 
-		[DataType(DataType.Date)]
-		public DateOnly? DateOfBirth { get; set; }
+        [Required]
+        public string DateOfBirth { get; set; } = null!;
 
-		[StringLength(200, ErrorMessage = "Address must be less than 200 characters.")]
+        [StringLength(200, ErrorMessage = "Address must be less than 200 characters.")]
 		public string? Address { get; set; }
 
 		[RegularExpression(@"^(0|\+84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-9])[0-9]{7}$",
@@ -36,8 +36,8 @@ namespace e_learning_vie.DTOs.StudentDtos
 				IdentityCode = this.IdentityCode,
 				FirstName = this.FirstName,
 				LastName = this.LastName,
-				DateOfBirth = this.DateOfBirth,
-				Address = this.Address,
+				DateOfBirth = DateOnly.ParseExact(this.DateOfBirth, "yyyy-MM-dd"),
+                Address = this.Address,
 				Phone = this.Phone
 			};
 		}

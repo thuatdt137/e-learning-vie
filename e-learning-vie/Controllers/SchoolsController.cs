@@ -28,7 +28,7 @@ namespace e_learning_vie.Controllers
         {
             try
             {
-                var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+
 
                 schoolType = schoolType?.Trim() ?? "";
                 keyWord = keyWord?.Trim() ?? "";
@@ -47,15 +47,27 @@ namespace e_learning_vie.Controllers
                                                   s.Email.Contains(keyWord, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
 
-                schools = schools
-                    .Skip((effectivePageNumber - 1) * effectivePageSize)
-                    .Take(effectivePageSize)
-                    .ToList();
+                var totalItems = schools.Count;
+
+                if(pageNumber.HasValue || pageSize.HasValue)
+                {
+                    var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+                    schools = schools
+                        .Skip((effectivePageNumber - 1) * effectivePageSize)
+                        .Take(effectivePageSize)
+                        .ToList();
+                    if(schools != null)
+                    {
+                        return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", new PaginatedResponse<SchoolDTO>(schools, totalItems, effectivePageNumber, effectivePageSize)));
+                    }
+                }
                 if(schools == null || !schools.Any())
                 {
                     return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No schools found!"));
                 }
+
                 return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", schools));
+
             }
             catch(Exception ex)
             {
@@ -87,10 +99,54 @@ namespace e_learning_vie.Controllers
             {
                 return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data."));
             }
+            if(!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors
+                        .Select(e => e.ErrorMessage).ToArray()
+                    );
+                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data.", errors));
+            }
             try
             {
                 var newSchool = _schoolService.AddSchool(schoolDto);
                 return StatusCode(StatusCodes.Status201Created, ApiResponse<object>.Success("School added successfully", newSchool));
+            }
+            catch(KeyNotFoundException knfEx)
+            {
+                return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Error(knfEx.Message));
+            }
+            catch(Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred: {ex.Message}"));
+            }
+        }
+        [HttpPut("{id}")]
+        public IActionResult UpdateSchool([FromBody] SchoolDTO schoolDto, int id)
+        {
+
+            if(schoolDto == null)
+            {
+                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data."));
+            }
+            if(!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors
+                        .Select(e => e.ErrorMessage).ToArray()
+                    );
+                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data.", errors));
+            }
+            try
+            {
+                var updatedSchool = _schoolService.UpdateSchool(id, schoolDto);
+                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("School updated successfully", updatedSchool));
             }
             catch(KeyNotFoundException knfEx)
             {

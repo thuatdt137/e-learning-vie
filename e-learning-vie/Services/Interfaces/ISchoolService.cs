@@ -6,7 +6,7 @@ namespace e_learning_vie.Services.Interfaces
     {
         List<SchoolDTO> GetSchoolList();
         SchoolDTO GetSchoolById(int id);
-        SchoolDTO AddSchool(SchoolDTO schoolDto);
-        SchoolDTO UpdateSchool(int id, SchoolDTO schoolDto);
+        dynamic AddSchool(SchoolDTO schoolDto);
+        dynamic UpdateSchool(int id, SchoolDTO schoolDto);
     }
 }
