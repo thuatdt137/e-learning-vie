@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using e_learning_vie.Models;
 
@@ -11,9 +12,11 @@ using e_learning_vie.Models;
 namespace e_learning_vie.Migrations
 {
     [DbContext(typeof(SchoolManagementContext))]
-    partial class SchoolManagementContextModelSnapshot : ModelSnapshot
+    [Migration("20250712151011_classNameHistory")]
+    partial class classNameHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -164,15 +167,6 @@ namespace e_learning_vie.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AcademicYearId"));
 
-                    b.Property<DateOnly?>("AspirationEditDeadline")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("AspirationRegistrationEndDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("AspirationRegistrationStartDate")
-                        .HasColumnType("date");
-
                     b.Property<DateOnly?>("EndDate")
                         .HasColumnType("date");
 
@@ -244,9 +238,6 @@ namespace e_learning_vie.Migrations
                     b.Property<int?>("AcademicYearId")
                         .HasColumnType("int")
                         .HasColumnName("AcademicYearID");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<int?>("Priority")
                         .HasColumnType("int");
@@ -548,9 +539,9 @@ namespace e_learning_vie.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("SchoolType")
+                    b.Property<string>("SchoolType")
                         .HasMaxLength(20)
-                        .HasColumnType("int");
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("SchoolId")
                         .HasName("PK__Schools__3DA4677B37F6A97C");

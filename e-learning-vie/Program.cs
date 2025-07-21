@@ -1,50 +1,159 @@
-﻿using e_learning_vie.Models;
+﻿using e_learning_vie.Middlewares;
+using e_learning_vie.Models;
+using e_learning_vie.Services.Implements;
+using e_learning_vie.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Thêm DbContext
+// Add DbContext
 builder.Services.AddDbContext<SchoolManagementContext>(options =>
-	options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
 
-builder.Services.AddIdentityCore<User>()
-	.AddEntityFrameworkStores<SchoolManagementContext>()
-	.AddApiEndpoints();
 
-// Add services to the container.
 
+
+
+
+// dang ky service o day
+builder.Services.AddScoped<ISchoolService, SchoolService>();
+builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddScoped<IStudentScheduleService, StudentScheduleService>();
+builder.Services.AddScoped<IStudentGradeService, StudentGradeService>();
+builder.Services.AddScoped<IStudentAspirationService, StudentAspirationService>();
+builder.Services.AddScoped<IUserContextService, UserContextService>();
+
+
+
+
+// config Identity
+builder.Services.AddIdentity<User, IdentityRole<int>>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 6;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+})
+.AddEntityFrameworkStores<SchoolManagementContext>();
+
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.SuppressModelStateInvalidFilter = true;
+});
+builder.Services.AddHttpContextAccessor();
+
+
+
+// logging
+builder.Services.AddLogging(logging =>
+{
+    logging.AddConsole();
+    logging.AddDebug();
+    logging.SetMinimumLevel(LogLevel.Information);
+});
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+
+
+// Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddCors();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:5173") // URL frontend
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // Nếu dùng cookie / token
+    });
+});
 
 
 builder.Services.AddAuthorization();
-builder.Services.AddAuthentication().AddCookie(IdentityConstants.ApplicationScheme)
-	.AddBearerToken(IdentityConstants.BearerScheme);
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // Nếu token không có trong header thì lấy từ cookie
+            var accessToken = context.Request.Cookies["accessToken"];
+            if(!string.IsNullOrEmpty(accessToken))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
+
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+        )
+    };
+});
+
 
 var app = builder.Build();
-app.MapIdentityApi<User>();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+
+app.UseExceptionHandler();
+
+
+// Initialize roles
+using(var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<int>>>();
+    var roles = new[] { "Student", "Teacher", "TrainingDepartment", "VicePrincipal", "MinistryOfEducation" };
+    foreach(var role in roles)
+    {
+        if(!await roleManager.RoleExistsAsync(role))
+        {
+            await roleManager.CreateAsync(new IdentityRole<int> { Name = role });
+        }
+    }
+}
+
+// Configure the HTTP request pipeline
+if(app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseCors(c =>
-{
-	c.AllowAnyHeader();
-	c.AllowAnyMethod();
-	c.AllowAnyOrigin();
-});
+app.UseCors(policy => policy
+    .WithOrigins("http://localhost:5173")
+    .AllowAnyHeader()
+    .AllowAnyMethod()
+    .AllowCredentials()
+);
+
 
 app.UseHttpsRedirection();
 
+
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 
 app.MapControllers();
 
