@@ -27,6 +27,8 @@ builder.Services.AddScoped<IStudentScheduleService, StudentScheduleService>();
 builder.Services.AddScoped<IStudentGradeService, StudentGradeService>();
 builder.Services.AddScoped<IStudentAspirationService, StudentAspirationService>();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
+builder.Services.AddScoped<IAcademicYearService, AcademicYearService>();
+
 
 
 
@@ -92,7 +94,7 @@ builder.Services.AddAuthentication(options =>
         {
             // Nếu token không có trong header thì lấy từ cookie
             var accessToken = context.Request.Cookies["accessToken"];
-            if(!string.IsNullOrEmpty(accessToken))
+            if (!string.IsNullOrEmpty(accessToken))
             {
                 context.Token = accessToken;
             }
@@ -119,13 +121,13 @@ app.UseExceptionHandler();
 
 
 // Initialize roles
-using(var scope = app.Services.CreateScope())
+using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<int>>>();
     var roles = new[] { "Student", "Teacher", "TrainingDepartment", "VicePrincipal", "MinistryOfEducation" };
-    foreach(var role in roles)
+    foreach (var role in roles)
     {
-        if(!await roleManager.RoleExistsAsync(role))
+        if (!await roleManager.RoleExistsAsync(role))
         {
             await roleManager.CreateAsync(new IdentityRole<int> { Name = role });
         }
@@ -133,7 +135,7 @@ using(var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline
-if(app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
