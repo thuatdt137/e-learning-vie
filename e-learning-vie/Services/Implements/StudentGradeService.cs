@@ -74,7 +74,7 @@ namespace e_learning_vie.Services.Implements
 
         public async Task<List<AcademicYearDto>> GetAcademicYearsWithGradesAsync(ClaimsPrincipal user)
         {
-            var studentId = await GetCurrentStudentIdAsync(user);
+            var studentId = await _userContextService.GetCurrentStudentIdAsync(user);
             if (studentId == null)
                 throw new InvalidOperationException("Không tìm thấy học sinh hiện tại");
 
@@ -90,20 +90,6 @@ namespace e_learning_vie.Services.Implements
                     YearName = ay.YearName
                 })
                 .ToListAsync();
-        }
-
-        private async Task<int?> GetCurrentStudentIdAsync(ClaimsPrincipal user)
-        {
-            var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (int.TryParse(userIdClaim, out int userId))
-            {
-                var userEntity = await _context.Users
-                    .Include(u => u.Student)
-                    .FirstOrDefaultAsync(u => u.Id == userId);
-
-                return userEntity?.StudentId;
-            }
-            return null;
         }
     }
 }

@@ -15,6 +15,8 @@ public partial class Aspiration
 
     public int? AcademicYearId { get; set; }
 
+    public DateTime? CreatedAt { get; set; }
+
     public virtual AcademicYear? AcademicYear { get; set; }
 
     public virtual Student? Student { get; set; }

@@ -35,11 +35,11 @@ namespace e_learning_vie.Controllers
 
                 var schools = _schoolService.GetSchoolList();
 
-                if(!string.IsNullOrEmpty(schoolType))
+                if (!string.IsNullOrEmpty(schoolType))
                 {
-                    schools = schools.Where(s => s.SchoolType != null && s.SchoolType.Contains(schoolType, StringComparison.OrdinalIgnoreCase)).ToList();
+                    schools = schools.Where(s => s.SchoolType.ToString().Contains(schoolType, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
-                if(!string.IsNullOrEmpty(keyWord))
+                if (!string.IsNullOrEmpty(keyWord))
                 {
                     schools = schools.Where(s => s.SchoolName.Contains(keyWord, StringComparison.OrdinalIgnoreCase) ||
                                                   s.Address.Contains(keyWord, StringComparison.OrdinalIgnoreCase) ||
@@ -49,19 +49,19 @@ namespace e_learning_vie.Controllers
 
                 var totalItems = schools.Count;
 
-                if(pageNumber.HasValue || pageSize.HasValue)
+                if (pageNumber.HasValue || pageSize.HasValue)
                 {
                     var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
                     schools = schools
                         .Skip((effectivePageNumber - 1) * effectivePageSize)
                         .Take(effectivePageSize)
                         .ToList();
-                    if(schools != null)
+                    if (schools != null)
                     {
                         return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", new PaginatedResponse<SchoolDTO>(schools, totalItems, effectivePageNumber, effectivePageSize)));
                     }
                 }
-                if(schools == null || !schools.Any())
+                if (schools == null || !schools.Any())
                 {
                     return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No schools found!"));
                 }
@@ -69,7 +69,7 @@ namespace e_learning_vie.Controllers
                 return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school list success", schools));
 
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred {ex.Message}"));
             }
@@ -80,13 +80,13 @@ namespace e_learning_vie.Controllers
             try
             {
                 var school = _schoolService.GetSchoolById(id.Value);
-                if(school == null)
+                if (school == null)
                 {
                     return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail($"School with ID {id} not found."));
                 }
                 return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get school success", school));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Fail($"An error occurred: {ex.Message}", ex));
             }
@@ -95,11 +95,11 @@ namespace e_learning_vie.Controllers
         [HttpPost]
         public IActionResult AddSchool([FromBody] SchoolDTO schoolDto)
         {
-            if(schoolDto == null)
+            if (schoolDto == null)
             {
                 return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data."));
             }
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
                 var errors = ModelState
                     .Where(e => e.Value.Errors.Count > 0)
@@ -115,11 +115,11 @@ namespace e_learning_vie.Controllers
                 var newSchool = _schoolService.AddSchool(schoolDto);
                 return StatusCode(StatusCodes.Status201Created, ApiResponse<object>.Success("School added successfully", newSchool));
             }
-            catch(KeyNotFoundException knfEx)
+            catch (KeyNotFoundException knfEx)
             {
                 return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Error(knfEx.Message));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred: {ex.Message}"));
             }
@@ -128,11 +128,11 @@ namespace e_learning_vie.Controllers
         public IActionResult UpdateSchool([FromBody] SchoolDTO schoolDto, int id)
         {
 
-            if(schoolDto == null)
+            if (schoolDto == null)
             {
                 return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid school data."));
             }
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
                 var errors = ModelState
                     .Where(e => e.Value.Errors.Count > 0)
@@ -148,11 +148,11 @@ namespace e_learning_vie.Controllers
                 var updatedSchool = _schoolService.UpdateSchool(id, schoolDto);
                 return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("School updated successfully", updatedSchool));
             }
-            catch(KeyNotFoundException knfEx)
+            catch (KeyNotFoundException knfEx)
             {
                 return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Error(knfEx.Message));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred: {ex.Message}"));
             }

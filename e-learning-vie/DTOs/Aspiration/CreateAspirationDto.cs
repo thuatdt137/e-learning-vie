@@ -1,35 +1,18 @@
 ﻿using e_learning_vie.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace e_learning_vie.DTOs.Aspiration
 {
-    public class StudentAspirationDto
-    {
-        public List<AspirationItemDto> Aspirations { get; set; }
-        public List<SchoolDto> AvailableSchools { get; set; }
-    }
-
-    public class AspirationItemDto
-    {
-        public int AspirationId { get; set; }
-        public int? Priority { get; set; }
-        public SchoolDto TargetSchool { get; set; }
-        public string AcademicYear { get; set; }
-    }
-
-    public class SchoolDto
-    {
-        public int SchoolId { get; set; }
-        public string SchoolName { get; set; }
-        public SchoolType SchoolType { get; set; }
-        public string Address { get; set; }
-        public string Phone { get; set; }
-        public string Email { get; set; }
-    }
-
     public class CreateAspirationDto
     {
-        public int TargetSchoolId { get; set; }
+        [Required(ErrorMessage = "Năm học là bắt buộc")]
         public int AcademicYearId { get; set; }
-        public int Priority { get; set; }
+
+        [Required(ErrorMessage = "Mã trường là bắt buộc")]
+        public int SchoolId { get; set; }
+
+        [Required(ErrorMessage = "Thứ tự nguyện vọng là bắt buộc")]
+        [Range(1, 3, ErrorMessage = "Thứ tự nguyện vọng phải từ 1 đến 3")]
+        public int Order { get; set; }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using e_learning_vie.Models;
 using e_learning_vie.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace e_learning_vie.Services.Implements
 {
@@ -31,5 +32,13 @@ namespace e_learning_vie.Services.Implements
                 throw;
             }
         }
+        public async Task<AcademicYear?> GetCurrentAcademicYearAsync()
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+
+            return await _context.AcademicYears
+                .FirstOrDefaultAsync(ay => ay.StartDate <= today && ay.EndDate >= today);
+        }
+
     }
 }

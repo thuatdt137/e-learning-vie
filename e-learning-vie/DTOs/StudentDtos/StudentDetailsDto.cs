@@ -26,7 +26,7 @@ namespace e_learning_vie.DTOs.StudentDtos
 
         public StudentDetailsDto() { }
 
-        public StudentDetailsDto(Student student)
+        public StudentDetailsDto(Models.Student student)
         {
             this.StudentId = student.StudentId;
             this.IdentityCode = student.IdentityCode;
@@ -40,7 +40,7 @@ namespace e_learning_vie.DTOs.StudentDtos
             this.SchoolId = student.SchoolId;
         }
 
-        public static Student map2Student(StudentDetailsDto dto, Student student)
+        public static Models.Student map2Student(StudentDetailsDto dto, Models.Student student)
         {
             student.StudentId = dto.StudentId;
             student.IdentityCode = dto.IdentityCode;
