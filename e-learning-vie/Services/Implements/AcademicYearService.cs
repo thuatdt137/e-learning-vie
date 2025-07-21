@@ -24,7 +24,7 @@ namespace e_learning_vie.Services.Implements
                         ay.StartDate,
                         ay.EndDate,
 
-                    })
+                    }).OrderByDescending(ay => ay.StartDate)
                     .ToList();
             }
             catch
