@@ -22,7 +22,6 @@ builder.Services.AddDbContext<SchoolManagementContext>(options =>
 
 // dang ky service o day
 builder.Services.AddScoped<ISchoolService, SchoolService>();
-builder.Services.AddScoped<IAcademicYearService, AcademicYearService>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<IStudentScheduleService, StudentScheduleService>();
 builder.Services.AddScoped<IStudentGradeService, StudentGradeService>();
