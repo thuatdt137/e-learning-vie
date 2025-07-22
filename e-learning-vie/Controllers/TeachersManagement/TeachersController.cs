@@ -305,7 +305,7 @@ namespace e_learning_vie.Controllers.TeachersManagement
                     return BadRequest(ApiResponse<object>.Fail("Không tìm thấy worksheet.", null));
 
                 int rowCount = worksheet.Dimension.Rows;
-                for (int row = 2; row <= rowCount; row++) 
+                for (int row = 2; row <= rowCount; row++)
                 {
                     try
                     {

@@ -24,10 +24,6 @@ public partial class AcademicYear
 
     public virtual ICollection<Aspiration> Aspirations { get; set; } = new List<Aspiration>();
 
-    public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
-
-    public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
-
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
     public virtual ICollection<Quota> Quota { get; set; } = new List<Quota>();
@@ -36,5 +32,5 @@ public partial class AcademicYear
 
     public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
 
-    public virtual ICollection<ClassHistory> StudentClassHistories { get; set; } = new List<ClassHistory>();
+    public virtual ICollection<ClassHistory> ClassHistories { get; set; } = new List<ClassHistory>();
 }
