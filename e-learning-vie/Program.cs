@@ -28,6 +28,7 @@ builder.Services.AddScoped<IStudentGradeService, StudentGradeService>();
 builder.Services.AddScoped<IStudentAspirationService, StudentAspirationService>();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
 builder.Services.AddScoped<IAcademicYearService, AcademicYearService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 
 
