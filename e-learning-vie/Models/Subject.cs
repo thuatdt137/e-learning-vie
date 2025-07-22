@@ -9,7 +9,7 @@ public partial class Subject
 
     public string SubjectName { get; set; } = null!;
 
-    public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
+    public virtual ICollection<SubjectGrade> SubjectGrades { get; set; } = new List<SubjectGrade>();
 
     public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
 }

@@ -29,7 +29,7 @@ public partial class Student
 
     public virtual Class? Class { get; set; }
 
-    public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
+    public virtual ICollection<StudentScore> Scores { get; set; } = new List<StudentScore>();
 
     public virtual School? School { get; set; }
 
