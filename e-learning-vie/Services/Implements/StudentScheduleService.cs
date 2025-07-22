@@ -2,6 +2,7 @@
 using e_learning_vie.Models;
 using e_learning_vie.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Security.Claims;
 
 namespace e_learning_vie.Services.Implements
@@ -17,12 +18,110 @@ namespace e_learning_vie.Services.Implements
             _userContextService = userContextService;
         }
 
-        public async Task<StudentScheduleDto> GetCurrentWeekScheduleAsync(ClaimsPrincipal user)
+        public async Task<StudentScheduleDto> GetScheduleAsync(ClaimsPrincipal user, int? year = null, int? weekNumber = null)
         {
-            return await GetWeekScheduleAsync(user, 0);
+            var student = await GetStudentAsync(user);
+
+            // Nếu không có tham số, lấy tuần hiện tại
+            var currentDate = DateTime.Today;
+            var targetYear = year ?? currentDate.Year;
+            var targetWeek = weekNumber ?? GetISOWeekOfYear(currentDate);
+
+            // Tính ngày bắt đầu và kết thúc của tuần
+            var (startDate, endDate) = GetWeekDateRange(targetYear, targetWeek);
+
+            // Validate tuần có trong phạm vi năm học không
+            await ValidateWeekInAcademicYear(student, startDate, endDate);
+
+            // Lấy lịch học
+            var schedules = await GetSchedulesForWeek(student, startDate, endDate);
+
+            return new StudentScheduleDto
+            {
+                StudentName = $"{student.FirstName} {student.LastName}",
+                ClassName = student.Class?.ClassName ?? "",
+                AcademicYear = student.Class?.AcademicYear?.YearName ?? "",
+                CurrentWeek = new WeekInfoDto
+                {
+                    Year = targetYear,
+                    WeekNumber = targetWeek,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    WeekDescription = $"{startDate:dd/MM} - {endDate:dd/MM}",
+                    IsCurrentWeek = IsCurrentWeek(startDate, endDate)
+                },
+                Schedules = schedules
+            };
         }
 
-        public async Task<StudentScheduleDto> GetWeekScheduleAsync(ClaimsPrincipal user, int weekOffset = 0)
+        public async Task<List<YearOption>> GetAvailableYearsAsync(ClaimsPrincipal user)
+        {
+            var student = await GetStudentAsync(user);
+            var academicYear = student.Class?.AcademicYear;
+
+            if (academicYear?.StartDate == null || academicYear?.EndDate == null)
+                throw new InvalidOperationException("Năm học chưa được thiết lập");
+
+            var startYear = academicYear.StartDate.Value.Year;
+            var endYear = academicYear.EndDate.Value.Year;
+            var currentYear = DateTime.Today.Year;
+
+            var years = new List<YearOption>();
+
+            for (int year = startYear; year <= endYear; year++)
+            {
+                years.Add(new YearOption
+                {
+                    Year = year,
+                    DisplayText = year.ToString(),
+                    IsCurrentYear = year == currentYear,
+                    IsAcademicYear = year >= startYear && year <= endYear
+                });
+            }
+
+            return years.OrderBy(y => y.Year).ToList();
+        }
+
+        public async Task<List<WeekOption>> GetAvailableWeeksAsync(ClaimsPrincipal user, int year)
+        {
+            var student = await GetStudentAsync(user);
+            var academicYear = student.Class?.AcademicYear;
+
+            if (academicYear?.StartDate == null || academicYear?.EndDate == null)
+                throw new InvalidOperationException("Năm học chưa được thiết lập");
+
+            var weeks = new List<WeekOption>();
+            var currentDate = DateTime.Today;
+            var currentWeek = GetISOWeekOfYear(currentDate);
+
+            // Lấy tất cả tuần trong năm
+            for (int week = 1; week <= GetWeeksInYear(year); week++)
+            {
+                var (startDate, endDate) = GetWeekDateRange(year, week);
+
+                // Chỉ lấy tuần nằm trong năm học
+                if (IsWeekInAcademicYear(startDate, endDate, academicYear))
+                {
+                    var hasSchedule = await HasScheduleInWeek(student, startDate, endDate);
+
+                    weeks.Add(new WeekOption
+                    {
+                        WeekNumber = week,
+                        StartDate = startDate,
+                        EndDate = endDate,
+                        DisplayText = $"{startDate:dd/MM} - {endDate:dd/MM}",
+                        IsCurrentWeek = year == currentDate.Year && week == currentWeek,
+                        HasSchedule = hasSchedule
+                    });
+                }
+            }
+
+            return weeks.OrderBy(w => w.WeekNumber).ToList();
+        }
+
+        #region Private Helper Methods
+
+        private async Task<Student> GetStudentAsync(ClaimsPrincipal user)
         {
             var studentId = await _userContextService.GetCurrentStudentIdAsync(user);
             if (studentId == null)
@@ -30,63 +129,32 @@ namespace e_learning_vie.Services.Implements
 
             var student = await _context.Students
                 .Include(s => s.Class)
-                .ThenInclude(c => c.AcademicYear)
+                .ThenInclude(c => c!.AcademicYear)
                 .FirstOrDefaultAsync(s => s.StudentId == studentId);
 
             if (student?.Class == null)
                 throw new InvalidOperationException("Học sinh chưa được phân lớp");
 
-            var today = DateTime.Today;
-            var currentWeekStart = today.AddDays(-(int)today.DayOfWeek + 1); // Monday
-            var targetWeekStart = currentWeekStart.AddDays(weekOffset * 7);
-
-            return await GetWeekScheduleByDateAsync(student, targetWeekStart, weekOffset);
+            return student;
         }
 
-        public async Task<StudentScheduleDto> GetSpecificWeekScheduleAsync(ClaimsPrincipal user, DateTime weekStartDate)
+        private async Task<List<ScheduleItemDto>> GetSchedulesForWeek(Student student, DateTime startDate, DateTime endDate)
         {
-            var studentId = await _userContextService.GetCurrentStudentIdAsync(user);
-            if (studentId == null)
-                throw new InvalidOperationException("Không tìm thấy học sinh hiện tại");
-
-            var student = await _context.Students
-                .Include(s => s.Class)
-                .ThenInclude(c => c.AcademicYear)
-                .FirstOrDefaultAsync(s => s.StudentId == studentId);
-
-            if (student?.Class == null)
-                throw new InvalidOperationException("Học sinh chưa được phân lớp");
-
-            // Đảm bảo ngày bắt đầu là thứ Hai
-            var startOfWeek = weekStartDate.Date.AddDays(-(int)weekStartDate.DayOfWeek + 1);
-
-            var today = DateTime.Today;
-            var currentWeekStart = today.AddDays(-(int)today.DayOfWeek + 1);
-            var weekOffset = (int)(startOfWeek - currentWeekStart).TotalDays / 7;
-
-            return await GetWeekScheduleByDateAsync(student, startOfWeek, weekOffset);
-        }
-
-        private async Task<StudentScheduleDto> GetWeekScheduleByDateAsync(Student student, DateTime weekStartDate, int weekOffset)
-        {
-            var weekEndDate = weekStartDate.AddDays(6); // Sunday
-
             var schedules = await _context.Schedules
                 .Include(s => s.Subject)
                 .Include(s => s.Teacher)
                 .Where(s => s.ClassId == student.ClassId &&
-                            s.AcademicYearId == student.Class!.AcademicYearId)
+                           s.AcademicYearId == student.Class!.AcademicYearId)
                 .OrderBy(s => s.DayOfWeek)
                 .ThenBy(s => s.StartTime)
                 .ToListAsync();
 
             var scheduleItems = new List<ScheduleItemDto>();
-            for (int day = 0; day < 7; day++)
-            {
-                var currentDate = weekStartDate.AddDays(day);
-                var dayOfWeekString = GetDayOfWeekString(currentDate.DayOfWeek);
 
-                var daySchedules = schedules.Where(s => s.DayOfWeek == dayOfWeekString).ToList();
+            for (var date = startDate; date <= endDate; date = date.AddDays(1))
+            {
+                var dayOfWeekString = GetDayOfWeekString(date.DayOfWeek);
+                var daySchedules = schedules.Where(s => s.DayOfWeek == dayOfWeekString);
 
                 foreach (var schedule in daySchedules)
                 {
@@ -94,11 +162,11 @@ namespace e_learning_vie.Services.Implements
                     {
                         ScheduleId = schedule.ScheduleId,
                         DayOfWeek = schedule.DayOfWeek ?? "",
-                        DayName = GetVietnameseDayName(currentDate.DayOfWeek),
-                        Date = currentDate,
+                        DayName = GetVietnameseDayName(date.DayOfWeek),
+                        Date = date,
                         Room = schedule.Room ?? "",
                         Subject = schedule.Subject?.SubjectName ?? "",
-                        Teacher = (schedule.Teacher?.FirstName ?? "") + " " + (schedule.Teacher?.LastName ?? ""),
+                        Teacher = $"{schedule.Teacher?.FirstName ?? ""} {schedule.Teacher?.LastName ?? ""}".Trim(),
                         StartTime = schedule.StartTime?.ToTimeSpan(),
                         EndTime = schedule.EndTime?.ToTimeSpan(),
                         Period = CalculatePeriod(schedule.StartTime)
@@ -106,27 +174,69 @@ namespace e_learning_vie.Services.Implements
                 }
             }
 
-            // Kiểm tra xem có tuần trước/sau trong phạm vi năm học không
-            var academicYear = student.Class!.AcademicYear!;
-            var hasPreviousWeek = academicYear.StartDate.HasValue && weekStartDate > academicYear.StartDate.Value.ToDateTime(TimeOnly.MinValue);
-            var hasNextWeek = academicYear.EndDate.HasValue && weekEndDate < academicYear.EndDate.Value.ToDateTime(TimeOnly.MinValue);
+            return scheduleItems;
+        }
 
-            return new StudentScheduleDto
-            {
-                StudentName = student.FirstName + " " + student.LastName,
-                ClassName = student.Class.ClassName ?? "",
-                AcademicYear = student.Class.AcademicYear.YearName ?? "",
-                CurrentWeek = new WeekInfoDto
-                {
-                    StartDate = weekStartDate,
-                    EndDate = weekEndDate,
-                    WeekNumber = GetWeekOfYear(weekStartDate),
-                    WeekDescription = GetWeekDescription(weekOffset),
-                    HasPreviousWeek = hasPreviousWeek,
-                    HasNextWeek = hasNextWeek
-                },
-                Schedules = scheduleItems
-            };
+        private async Task<bool> HasScheduleInWeek(Student student, DateTime startDate, DateTime endDate)
+        {
+            var hasSchedule = await _context.Schedules
+                .AnyAsync(s => s.ClassId == student.ClassId &&
+                              s.AcademicYearId == student.Class!.AcademicYearId);
+
+            return hasSchedule;
+        }
+
+        private Task ValidateWeekInAcademicYear(Student student, DateTime startDate, DateTime endDate)
+        {
+            var academicYear = student.Class?.AcademicYear;
+            if (academicYear?.StartDate == null || academicYear?.EndDate == null)
+                throw new InvalidOperationException("Năm học chưa được thiết lập");
+
+            if (!IsWeekInAcademicYear(startDate, endDate, academicYear))
+                throw new ArgumentException("Tuần được chọn không nằm trong năm học");
+
+            return Task.CompletedTask;
+        }
+
+        private bool IsWeekInAcademicYear(DateTime startDate, DateTime endDate, AcademicYear academicYear)
+        {
+            var yearStart = academicYear.StartDate!.Value.ToDateTime(TimeOnly.MinValue);
+            var yearEnd = academicYear.EndDate!.Value.ToDateTime(TimeOnly.MinValue);
+
+            return startDate <= yearEnd && endDate >= yearStart;
+        }
+
+        private (DateTime startDate, DateTime endDate) GetWeekDateRange(int year, int weekNumber)
+        {
+            var jan1 = new DateTime(year, 1, 1);
+            var daysOffset = DayOfWeek.Monday - jan1.DayOfWeek;
+            var firstMonday = jan1.AddDays(daysOffset);
+
+            if (daysOffset > 0)
+                firstMonday = firstMonday.AddDays(-7);
+
+            var startDate = firstMonday.AddDays((weekNumber - 1) * 7);
+            var endDate = startDate.AddDays(6);
+
+            return (startDate, endDate);
+        }
+
+        private int GetISOWeekOfYear(DateTime date)
+        {
+            var cal = CultureInfo.InvariantCulture.Calendar;
+            return cal.GetWeekOfYear(date, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+        }
+
+        private int GetWeeksInYear(int year)
+        {
+            var lastDay = new DateTime(year, 12, 31);
+            return GetISOWeekOfYear(lastDay);
+        }
+
+        private bool IsCurrentWeek(DateTime startDate, DateTime endDate)
+        {
+            var today = DateTime.Today;
+            return today >= startDate && today <= endDate;
         }
 
         private string GetDayOfWeekString(DayOfWeek dayOfWeek)
@@ -159,23 +269,10 @@ namespace e_learning_vie.Services.Implements
             };
         }
 
-        private string GetWeekDescription(int weekOffset)
-        {
-            return weekOffset switch
-            {
-                0 => "Tuần hiện tại",
-                1 => "Tuần sau",
-                -1 => "Tuần trước",
-                > 1 => $"Tuần sau {weekOffset} tuần",
-                < -1 => $"Tuần trước {Math.Abs(weekOffset)} tuần"
-            };
-        }
-
         private int CalculatePeriod(TimeOnly? startTime)
         {
             if (!startTime.HasValue) return 1;
 
-            // Tính tiết học dựa trên giờ bắt đầu (giả sử mỗi tiết 45 phút)
             var hour = startTime.Value.Hour;
             var minute = startTime.Value.Minute;
 
@@ -193,13 +290,6 @@ namespace e_learning_vie.Services.Implements
             };
         }
 
-        private int GetWeekOfYear(DateTime date)
-        {
-            var jan1 = new DateTime(date.Year, 1, 1);
-            var daysOffset = (int)jan1.DayOfWeek - 1;
-            var firstWeekday = jan1.AddDays(-daysOffset);
-            var weeksSinceFirst = (date - firstWeekday).Days / 7;
-            return weeksSinceFirst + 1;
-        }
+        #endregion
     }
 }

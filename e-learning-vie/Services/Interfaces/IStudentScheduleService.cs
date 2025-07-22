@@ -5,8 +5,11 @@ namespace e_learning_vie.Services.Interfaces
 {
     public interface IStudentScheduleService
     {
-        Task<StudentScheduleDto> GetCurrentWeekScheduleAsync(ClaimsPrincipal user);
-        Task<StudentScheduleDto> GetWeekScheduleAsync(ClaimsPrincipal user, int weekOffset = 0);
-        Task<StudentScheduleDto> GetSpecificWeekScheduleAsync(ClaimsPrincipal user, DateTime weekStartDate);
+        // Main API - Lấy lịch theo năm và tuần
+        Task<StudentScheduleDto> GetScheduleAsync(ClaimsPrincipal user, int? year = null, int? weekNumber = null);
+
+        // Utility APIs - Lấy danh sách để chọn
+        Task<List<YearOption>> GetAvailableYearsAsync(ClaimsPrincipal user);
+        Task<List<WeekOption>> GetAvailableWeeksAsync(ClaimsPrincipal user, int year);
     }
 }

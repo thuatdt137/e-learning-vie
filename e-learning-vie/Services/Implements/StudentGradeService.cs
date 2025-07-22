@@ -25,13 +25,22 @@ namespace e_learning_vie.Services.Implements
             if (academicYearId == null)
             {
                 var currentStudent = await _context.Students
-                    .Include(s => s.Class)
+                    .Include(s => s.StudentClassHistories)
+                        .ThenInclude(sch => sch.AcademicYear)
                     .FirstOrDefaultAsync(s => s.StudentId == studentId);
 
-                if (currentStudent?.Class == null)
-                    throw new InvalidOperationException("Học sinh chưa được phân lớp");
+                if (currentStudent == null)
+                    throw new InvalidOperationException("Không tìm thấy học sinh");
 
-                academicYearId = currentStudent.Class.AcademicYearId;
+                var currentClass = currentStudent.StudentClassHistories
+                    .Where(h => h.EndDate == null || h.EndDate > DateOnly.FromDateTime(DateTime.Now))
+                    .OrderByDescending(h => h.StartDate)
+                    .FirstOrDefault();
+
+                if (currentClass?.AcademicYear == null)
+                    throw new InvalidOperationException("Học sinh chưa được phân lớp hoặc không có năm học hiện tại");
+
+                academicYearId = currentClass.AcademicYear.AcademicYearId;
             }
 
             var academicYear = await _context.AcademicYears
@@ -40,36 +49,59 @@ namespace e_learning_vie.Services.Implements
             if (academicYear == null)
                 throw new ArgumentException("Không tìm thấy năm học");
 
-            var grades = await _context.Grades
-                .Include(g => g.Subject)
-                .Where(g => g.StudentId == studentId && g.AcademicYearId == academicYearId)
-                .GroupBy(g => g.Subject)
+            // Tạm thời sử dụng cấu trúc hiện có với Grade và SubjectGrade
+            var subjectGrades = await _context.Grades
+                .Include(g => g.SubjectGrades)
+                    .ThenInclude(sg => sg.Subject)
+                .Where(g => g.SubjectGrades.Any())
+                .SelectMany(g => g.SubjectGrades)
+                .GroupBy(sg => sg.Subject)
                 .Select(group => new SubjectGradeDto
                 {
                     SubjectId = group.Key.SubjectId,
                     SubjectName = group.Key.SubjectName,
-                    Grades = group.Select(g => new GradeItemDto
+                    Grades = group.Select(sg => new GradeItemDto
                     {
-                        GradeId = g.GradeId,
-                        Score = g.Score,
-                        GradeType = g.GradeType,
-                        DateEntered = g.DateEntered
+                        GradeId = sg.SubjectGradeId,
+                        Score = 8.5, // Mock data - cần StudentScore để lưu điểm thực tế
+                        GradeType = sg.Grade.GradeType ?? "Chưa xác định",
+                        Weight = sg.Weight,
+                        DateEntered = DateOnly.FromDateTime(DateTime.Now),
+                        Description = sg.Grade.Description
                     }).OrderBy(g => g.DateEntered).ToList(),
-                    AverageScore = group.Average(g => g.Score ?? 0),
+                    
+                    AverageScore = CalculateWeightedAverage(group.ToList()),
                     TotalTests = group.Count()
                 })
                 .OrderBy(s => s.SubjectName)
                 .ToListAsync();
 
-            var overallAverage = grades.Any() ? grades.Average(g => g.AverageScore) : 0;
+            var overallAverage = subjectGrades.Any() ? subjectGrades.Average(g => g.AverageScore) : 0;
 
             return new StudentGradeDto
             {
                 AcademicYear = academicYear.YearName,
                 OverallAverage = Math.Round(overallAverage, 2),
-                SubjectGrades = grades,
-                TotalSubjects = grades.Count()
+                SubjectGrades = subjectGrades,
+                TotalSubjects = subjectGrades.Count()
             };
+        }
+
+        /// <summary>
+        /// Tính điểm trung bình có trọng số cho 1 môn học
+        /// </summary>
+        /// <param name="subjectGrades">Danh sách SubjectGrade của môn học</param>
+        /// <returns>Điểm trung bình có trọng số</returns>
+        private double CalculateWeightedAverage(List<SubjectGrade> subjectGrades)
+        {
+            if (!subjectGrades.Any()) return 0;
+
+            // Mock calculation - trong thực tế cần StudentScore để có điểm thực tế
+            var mockScore = 8.5; // Điểm giả định
+            var weightedSum = subjectGrades.Sum(sg => mockScore * sg.Weight);
+            var totalWeight = subjectGrades.Sum(sg => sg.Weight);
+            
+            return totalWeight > 0 ? Math.Round(weightedSum / totalWeight, 2) : 0;
         }
 
         public async Task<List<AcademicYearDto>> GetAcademicYearsWithGradesAsync(ClaimsPrincipal user)
@@ -78,10 +110,11 @@ namespace e_learning_vie.Services.Implements
             if (studentId == null)
                 throw new InvalidOperationException("Không tìm thấy học sinh hiện tại");
 
-            return await _context.Grades
-                .Include(g => g.AcademicYear)
-                .Where(g => g.StudentId == studentId)
-                .Select(g => g.AcademicYear)
+            // Lấy năm học từ StudentClassHistory thay vì Grades
+            return await _context.StudentClassHistories
+                .Include(sch => sch.AcademicYear)
+                .Where(sch => sch.StudentId == studentId && sch.AcademicYear != null)
+                .Select(sch => sch.AcademicYear!)
                 .Distinct()
                 .OrderByDescending(ay => ay.AcademicYearId)
                 .Select(ay => new AcademicYearDto
