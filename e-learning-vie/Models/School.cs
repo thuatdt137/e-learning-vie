@@ -33,4 +33,6 @@ public partial class School
     public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 
     public virtual ICollection<Teacher> Teachers { get; set; } = new List<Teacher>();
+
+    public virtual ICollection<ClassHistory> StudentClassHistories { get; set; } = new List<ClassHistory>();
 }

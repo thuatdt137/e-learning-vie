@@ -3,13 +3,17 @@ using System.Collections.Generic;
 
 namespace e_learning_vie.Models;
 
-public partial class StudentClassHistory
+public partial class ClassHistory
 {
     public int HistoryId { get; set; }
 
     public int? StudentId { get; set; }
 
+    public int? TeacherId { get; set; }
+
     public int? ClassId { get; set; }
+
+    public int? SchoolId { get; set; }
 
     public string? ClassName { get; set; }
 
@@ -25,5 +29,9 @@ public partial class StudentClassHistory
 
     public virtual Class? Class { get; set; }
 
+    public virtual School? School { get; set; }
+
     public virtual Student? Student { get; set; }
+
+    public virtual Teacher? Teacher { get; set; }
 }
