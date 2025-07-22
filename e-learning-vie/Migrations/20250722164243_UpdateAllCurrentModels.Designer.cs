@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using e_learning_vie.Models;
 
@@ -11,9 +12,11 @@ using e_learning_vie.Models;
 namespace e_learning_vie.Migrations
 {
     [DbContext(typeof(SchoolManagementContext))]
-    partial class SchoolManagementContextModelSnapshot : ModelSnapshot
+    [Migration("20250722164243_UpdateAllCurrentModels")]
+    partial class UpdateAllCurrentModels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -280,6 +283,9 @@ namespace e_learning_vie.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ClassId"));
 
+                    b.Property<int?>("AcademicYearId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ClassName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -289,10 +295,17 @@ namespace e_learning_vie.Migrations
                         .HasColumnType("int")
                         .HasColumnName("SchoolID");
 
+                    b.Property<int?>("TeacherId")
+                        .HasColumnType("int");
+
                     b.HasKey("ClassId")
                         .HasName("PK__Classes__CB1927A052B95F6D");
 
+                    b.HasIndex("AcademicYearId");
+
                     b.HasIndex("SchoolId");
+
+                    b.HasIndex("TeacherId");
 
                     b.ToTable("Classes");
                 });
@@ -363,6 +376,9 @@ namespace e_learning_vie.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("GradeId"));
 
+                    b.Property<int?>("AcademicYearId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
@@ -372,6 +388,8 @@ namespace e_learning_vie.Migrations
 
                     b.HasKey("GradeId")
                         .HasName("PK__Grades__54F87A370A2E8566");
+
+                    b.HasIndex("AcademicYearId");
 
                     b.ToTable("Grades");
                 });
@@ -598,6 +616,9 @@ namespace e_learning_vie.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int?>("ClassId")
+                        .HasColumnType("int");
+
                     b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
 
@@ -625,8 +646,15 @@ namespace e_learning_vie.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(15)");
 
+                    b.Property<int?>("SchoolId")
+                        .HasColumnType("int");
+
                     b.HasKey("StudentId")
                         .HasName("PK__Students__32C52A79E8FE8C3E");
+
+                    b.HasIndex("ClassId");
+
+                    b.HasIndex("SchoolId");
 
                     b.ToTable("Students");
                 });
@@ -944,18 +972,28 @@ namespace e_learning_vie.Migrations
 
             modelBuilder.Entity("e_learning_vie.Models.Class", b =>
                 {
+                    b.HasOne("e_learning_vie.Models.AcademicYear", null)
+                        .WithMany("Classes")
+                        .HasForeignKey("AcademicYearId");
+
                     b.HasOne("e_learning_vie.Models.School", "School")
                         .WithMany("Classes")
                         .HasForeignKey("SchoolId")
                         .HasConstraintName("FK__Classes__SchoolI__300424B4");
 
+                    b.HasOne("e_learning_vie.Models.Teacher", "Teacher")
+                        .WithMany("Classes")
+                        .HasForeignKey("TeacherId");
+
                     b.Navigation("School");
+
+                    b.Navigation("Teacher");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.ClassHistory", b =>
                 {
                     b.HasOne("e_learning_vie.Models.AcademicYear", "AcademicYear")
-                        .WithMany("ClassHistories")
+                        .WithMany("StudentClassHistories")
                         .HasForeignKey("AcademicYearId")
                         .HasConstraintName("FK__StudentCl__Acade__59063A47");
 
@@ -988,6 +1026,13 @@ namespace e_learning_vie.Migrations
                     b.Navigation("Student");
 
                     b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("e_learning_vie.Models.Grade", b =>
+                {
+                    b.HasOne("e_learning_vie.Models.AcademicYear", null)
+                        .WithMany("Grades")
+                        .HasForeignKey("AcademicYearId");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Notification", b =>
@@ -1089,6 +1134,17 @@ namespace e_learning_vie.Migrations
                     b.Navigation("Principal");
                 });
 
+            modelBuilder.Entity("e_learning_vie.Models.Student", b =>
+                {
+                    b.HasOne("e_learning_vie.Models.Class", null)
+                        .WithMany("Students")
+                        .HasForeignKey("ClassId");
+
+                    b.HasOne("e_learning_vie.Models.School", null)
+                        .WithMany("Students")
+                        .HasForeignKey("SchoolId");
+                });
+
             modelBuilder.Entity("e_learning_vie.Models.StudentScore", b =>
                 {
                     b.HasOne("e_learning_vie.Models.Student", "Student")
@@ -1162,7 +1218,9 @@ namespace e_learning_vie.Migrations
                 {
                     b.Navigation("Aspirations");
 
-                    b.Navigation("ClassHistories");
+                    b.Navigation("Classes");
+
+                    b.Navigation("Grades");
 
                     b.Navigation("Notifications");
 
@@ -1171,6 +1229,8 @@ namespace e_learning_vie.Migrations
                     b.Navigation("Requests");
 
                     b.Navigation("Schedules");
+
+                    b.Navigation("StudentClassHistories");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Class", b =>
@@ -1178,6 +1238,8 @@ namespace e_learning_vie.Migrations
                     b.Navigation("Schedules");
 
                     b.Navigation("StudentClassHistories");
+
+                    b.Navigation("Students");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Grade", b =>
@@ -1196,6 +1258,8 @@ namespace e_learning_vie.Migrations
                     b.Navigation("Quota");
 
                     b.Navigation("StudentClassHistories");
+
+                    b.Navigation("Students");
 
                     b.Navigation("Teachers");
                 });
@@ -1225,6 +1289,8 @@ namespace e_learning_vie.Migrations
 
             modelBuilder.Entity("e_learning_vie.Models.Teacher", b =>
                 {
+                    b.Navigation("Classes");
+
                     b.Navigation("Schedules");
 
                     b.Navigation("Schools");

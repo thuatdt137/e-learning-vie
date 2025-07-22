@@ -1,8 +1,8 @@
 ﻿using e_learning_vie.Commons;
+using e_learning_vie.DTOs.Student;
 using e_learning_vie.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace e_learning_vie.Controllers.StudentsManagement
 {
@@ -19,19 +19,21 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         /// <summary>
-        /// Lấy lịch học của tuần hiện tại
+        /// Lấy lịch học (mặc định là tuần hiện tại)
         /// </summary>
-        [HttpGet("current-week")]
-        public async Task<IActionResult> GetCurrentWeekSchedule()
+        /// <param name="year">Năm (mặc định: năm hiện tại)</param>
+        /// <param name="weekNumber">Số tuần trong năm (mặc định: tuần hiện tại)</param>
+        [HttpGet]
+        public async Task<IActionResult> GetSchedule([FromQuery] int? year = null, [FromQuery] int? weekNumber = null)
         {
             try
             {
-                var schedule = await _scheduleService.GetCurrentWeekScheduleAsync(User);
-                return Ok(ApiResponse<object>.Success("Lấy lịch học tuần hiện tại thành công", schedule));
+                var schedule = await _scheduleService.GetScheduleAsync(User, year, weekNumber);
+                return Ok(ApiResponse<StudentScheduleDto>.Success("Lấy lịch học thành công", schedule));
             }
             catch (ArgumentException ex)
             {
-                return NotFound(ApiResponse<object>.Error(ex.Message));
+                return BadRequest(ApiResponse<object>.Error(ex.Message));
             }
             catch (InvalidOperationException ex)
             {
@@ -44,20 +46,15 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         /// <summary>
-        /// Lấy lịch học theo tuần (với offset từ tuần hiện tại)
+        /// Lấy danh sách năm có thể chọn
         /// </summary>
-        /// <param name="weekOffset">Offset từ tuần hiện tại (0: tuần hiện tại, 1: tuần sau, -1: tuần trước)</param>
-        [HttpGet("week")]
-        public async Task<IActionResult> GetWeekSchedule([FromQuery] int weekOffset = 0)
+        [HttpGet("years")]
+        public async Task<IActionResult> GetAvailableYears()
         {
             try
             {
-                var schedule = await _scheduleService.GetWeekScheduleAsync(User, weekOffset);
-                return Ok(ApiResponse<object>.Success("Lấy lịch học thành công", schedule));
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(ApiResponse<object>.Error(ex.Message));
+                var years = await _scheduleService.GetAvailableYearsAsync(User);
+                return Ok(ApiResponse<List<YearOption>>.Success("Lấy danh sách năm thành công", years));
             }
             catch (InvalidOperationException ex)
             {
@@ -70,70 +67,20 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         /// <summary>
-        /// Lấy lịch học tuần trước
+        /// Lấy danh sách tuần trong năm có thể chọn
         /// </summary>
-        [HttpGet("previous-week")]
-        public async Task<IActionResult> GetPreviousWeekSchedule()
+        /// <param name="year">Năm cần lấy danh sách tuần</param>
+        [HttpGet("weeks")]
+        public async Task<IActionResult> GetAvailableWeeks([FromQuery] int year)
         {
             try
             {
-                var schedule = await _scheduleService.GetWeekScheduleAsync(User, -1);
-                return Ok(ApiResponse<object>.Success("Lấy lịch học tuần trước thành công", schedule));
+                var weeks = await _scheduleService.GetAvailableWeeksAsync(User, year);
+                return Ok(ApiResponse<List<WeekOption>>.Success($"Lấy danh sách tuần năm {year} thành công", weeks));
             }
             catch (ArgumentException ex)
-            {
-                return NotFound(ApiResponse<object>.Error(ex.Message));
-            }
-            catch (InvalidOperationException ex)
             {
                 return BadRequest(ApiResponse<object>.Error(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse<object>.Error($"Lỗi server: {ex.Message}"));
-            }
-        }
-
-        /// <summary>
-        /// Lấy lịch học tuần sau
-        /// </summary>
-        [HttpGet("next-week")]
-        public async Task<IActionResult> GetNextWeekSchedule()
-        {
-            try
-            {
-                var schedule = await _scheduleService.GetWeekScheduleAsync(User, 1);
-                return Ok(ApiResponse<object>.Success("Lấy lịch học tuần sau thành công", schedule));
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(ApiResponse<object>.Error(ex.Message));
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ApiResponse<object>.Error(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse<object>.Error($"Lỗi server: {ex.Message}"));
-            }
-        }
-
-        /// <summary>
-        /// Lấy lịch học theo ngày cụ thể (tự động tính tuần chứa ngày đó)
-        /// </summary>
-        /// <param name="date">Ngày cần xem lịch (YYYY-MM-DD)</param>
-        [HttpGet("by-date")]
-        public async Task<IActionResult> GetScheduleByDate([FromQuery] DateTime date)
-        {
-            try
-            {
-                var schedule = await _scheduleService.GetSpecificWeekScheduleAsync(User, date);
-                return Ok(ApiResponse<object>.Success("Lấy lịch học theo ngày thành công", schedule));
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(ApiResponse<object>.Error(ex.Message));
             }
             catch (InvalidOperationException ex)
             {
