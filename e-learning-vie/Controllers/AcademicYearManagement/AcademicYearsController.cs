@@ -1,11 +1,11 @@
 ﻿using e_learning_vie.Commons;
 using e_learning_vie.DTOs.AcademicYear;
-using e_learning_vie.Models;
-using Microsoft.AspNetCore.Mvc;
 using e_learning_vie.Services.Interfaces;
+using Microsoft.AspNetCore.Mvc;
 
 namespace e_learning_vie.Controllers.AcademicYearManagement
 {
+    //[Authorize(Roles = "MinistryOfEducation")]
     [Route("api/[controller]")]
     [ApiController]
     public class AcademicYearsController : ControllerBase
@@ -25,7 +25,7 @@ namespace e_learning_vie.Controllers.AcademicYearManagement
                 var result = _service.GetAcademicYearList();
                 return Ok(ApiResponse<object>.Success("Success", result));
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.Error(ex.Message));
             }
@@ -37,11 +37,11 @@ namespace e_learning_vie.Controllers.AcademicYearManagement
             try
             {
                 var result = _service.GetAcademicYearById(id);
-                if (result == null)
+                if(result == null)
                     return NotFound(ApiResponse<object>.Fail($"AcademicYear with ID {id} not found."));
                 return Ok(ApiResponse<object>.Success("Success", result));
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.Error(ex.Message));
             }
@@ -50,9 +50,9 @@ namespace e_learning_vie.Controllers.AcademicYearManagement
         [HttpPost]
         public IActionResult CreateAcademicYear([FromBody] AcademicYearDTO dto)
         {
-            if (dto == null)
+            if(dto == null)
                 return BadRequest(ApiResponse<object>.Fail("Invalid academic year data."));
-            if (!ModelState.IsValid)
+            if(!ModelState.IsValid)
             {
                 var errors = ModelState
                     .Where(e => e.Value.Errors.Count > 0)
@@ -67,7 +67,7 @@ namespace e_learning_vie.Controllers.AcademicYearManagement
                 var result = _service.CreateAcademicYear(dto);
                 return StatusCode(201, ApiResponse<object>.Success("Academic year added successfully", result));
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.Error($"An error occurred: {ex.Message}"));
             }
@@ -76,9 +76,9 @@ namespace e_learning_vie.Controllers.AcademicYearManagement
         [HttpPut("{id}")]
         public IActionResult UpdateAcademicYear([FromBody] AcademicYearDTO dto, int id)
         {
-            if (dto == null)
+            if(dto == null)
                 return BadRequest(ApiResponse<object>.Fail("Invalid academic year data."));
-            if (!ModelState.IsValid)
+            if(!ModelState.IsValid)
             {
                 var errors = ModelState
                     .Where(e => e.Value.Errors.Count > 0)
@@ -93,11 +93,11 @@ namespace e_learning_vie.Controllers.AcademicYearManagement
                 var result = _service.UpdateAcademicYear(id, dto);
                 return Ok(ApiResponse<object>.Success("Academic year updated successfully", result));
             }
-            catch (KeyNotFoundException knfEx)
+            catch(KeyNotFoundException knfEx)
             {
                 return NotFound(ApiResponse<object>.Error(knfEx.Message));
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.Error($"An error occurred: {ex.Message}"));
             }

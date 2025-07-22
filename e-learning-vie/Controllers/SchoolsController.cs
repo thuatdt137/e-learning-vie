@@ -37,7 +37,7 @@ namespace e_learning_vie.Controllers
 
                 if (!string.IsNullOrEmpty(schoolType))
                 {
-                    schools = schools.Where(s => s.SchoolType.ToString().Contains(schoolType, StringComparison.OrdinalIgnoreCase)).ToList();
+                    schools = schools.Where(s => s.SchoolType.GetDisplayName().Contains(schoolType, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
                 if (!string.IsNullOrEmpty(keyWord))
                 {
