@@ -20,7 +20,7 @@
     {
         public int GradeId { get; set; }
         public double? Score { get; set; }
-        public string GradeType { get; set; }
+        public string GradeType { get; set; } = null!;
         public double Weight { get; set; }
         public DateOnly? DateEntered { get; set; }
         public string? Description { get; set; }

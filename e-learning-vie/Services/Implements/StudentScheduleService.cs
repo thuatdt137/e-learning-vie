@@ -5,22 +5,25 @@ using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Security.Claims;
 
-//namespace e_learning_vie.Services.Implements
-//{
-//    public class StudentScheduleService : IStudentScheduleService
-//    {
-//        private readonly SchoolManagementContext _context;
-//        private readonly IUserContextService _userContextService;
+namespace e_learning_vie.Services.Implements
+{
+    public class StudentScheduleService : IStudentScheduleService
+    {
+        private readonly SchoolManagementContext _context;
+        private readonly IUserContextService _userContextService;
 
-//        public StudentScheduleService(SchoolManagementContext context, IUserContextService userContextService)
-//        {
-//            _context = context;
-//            _userContextService = userContextService;
-//        }
+        public StudentScheduleService(SchoolManagementContext context, IUserContextService userContextService)
+        {
+            _context = context;
+            _userContextService = userContextService;
+        }
 
         public async Task<StudentScheduleDto> GetScheduleAsync(ClaimsPrincipal user, int? year = null, int? weekNumber = null)
         {
             var student = await GetStudentAsync(user);
+
+            // Lấy lớp hiện tại từ StudentClassHistories
+            var currentClass = await GetCurrentClassAsync(student);
 
             // Nếu không có tham số, lấy tuần hiện tại
             var currentDate = DateTime.Today;
@@ -31,16 +34,16 @@ using System.Security.Claims;
             var (startDate, endDate) = GetWeekDateRange(targetYear, targetWeek);
 
             // Validate tuần có trong phạm vi năm học không
-            await ValidateWeekInAcademicYear(student, startDate, endDate);
+            await ValidateWeekInAcademicYear(currentClass, startDate, endDate);
 
             // Lấy lịch học
-            var schedules = await GetSchedulesForWeek(student, startDate, endDate);
+            var schedules = await GetSchedulesForWeek(currentClass, startDate, endDate);
 
             return new StudentScheduleDto
             {
                 StudentName = $"{student.FirstName} {student.LastName}",
-                ClassName = student.Class?.ClassName ?? "",
-                AcademicYear = student.Class?.AcademicYear?.YearName ?? "",
+                ClassName = currentClass.ClassName ?? "",
+                AcademicYear = currentClass.AcademicYear?.YearName ?? "",
                 CurrentWeek = new WeekInfoDto
                 {
                     Year = targetYear,
@@ -57,7 +60,8 @@ using System.Security.Claims;
         public async Task<List<YearOption>> GetAvailableYearsAsync(ClaimsPrincipal user)
         {
             var student = await GetStudentAsync(user);
-            var academicYear = student.Class?.AcademicYear;
+            var currentClass = await GetCurrentClassAsync(student);
+            var academicYear = currentClass.AcademicYear;
 
             if (academicYear?.StartDate == null || academicYear?.EndDate == null)
                 throw new InvalidOperationException("Năm học chưa được thiết lập");
@@ -85,7 +89,8 @@ using System.Security.Claims;
         public async Task<List<WeekOption>> GetAvailableWeeksAsync(ClaimsPrincipal user, int year)
         {
             var student = await GetStudentAsync(user);
-            var academicYear = student.Class?.AcademicYear;
+            var currentClass = await GetCurrentClassAsync(student);
+            var academicYear = currentClass.AcademicYear;
 
             if (academicYear?.StartDate == null || academicYear?.EndDate == null)
                 throw new InvalidOperationException("Năm học chưa được thiết lập");
@@ -102,7 +107,7 @@ using System.Security.Claims;
                 // Chỉ lấy tuần nằm trong năm học
                 if (IsWeekInAcademicYear(startDate, endDate, academicYear))
                 {
-                    var hasSchedule = await HasScheduleInWeek(student, startDate, endDate);
+                    var hasSchedule = await HasScheduleInWeek(currentClass, startDate, endDate);
 
                     weeks.Add(new WeekOption
                     {
@@ -128,23 +133,50 @@ using System.Security.Claims;
                 throw new InvalidOperationException("Không tìm thấy học sinh hiện tại");
 
             var student = await _context.Students
-                .Include(s => s.Class)
-                .ThenInclude(c => c!.AcademicYear)
+                .Include(s => s.StudentClassHistories)
+                    .ThenInclude(sch => sch.Class)
+                .Include(s => s.StudentClassHistories)
+                    .ThenInclude(sch => sch.AcademicYear)
                 .FirstOrDefaultAsync(s => s.StudentId == studentId);
 
-//            if (student?.Class == null)
-//                throw new InvalidOperationException("Học sinh chưa được phân lớp");
+            if (student == null)
+                throw new InvalidOperationException("Không tìm thấy học sinh");
 
             return student;
         }
 
-        private async Task<List<ScheduleItemDto>> GetSchedulesForWeek(Student student, DateTime startDate, DateTime endDate)
+        private async Task<ClassHistory> GetCurrentClassAsync(Student student)
+        {
+            var currentClassHistory = student.StudentClassHistories
+                .Where(h => h.EndDate == null || h.EndDate > DateOnly.FromDateTime(DateTime.Now))
+                .OrderByDescending(h => h.StartDate)
+                .FirstOrDefault();
+
+            if (currentClassHistory == null)
+            {
+                // Nếu không có từ navigation property, query trực tiếp
+                currentClassHistory = await _context.ClassHistories
+                    .Include(sch => sch.Class)
+                    .Include(sch => sch.AcademicYear)
+                    .Where(sch => sch.StudentId == student.StudentId &&
+                                 (sch.EndDate == null || sch.EndDate > DateOnly.FromDateTime(DateTime.Now)))
+                    .OrderByDescending(sch => sch.StartDate)
+                    .FirstOrDefaultAsync();
+            }
+
+            if (currentClassHistory == null)
+                throw new InvalidOperationException("Học sinh chưa được phân lớp");
+
+            return currentClassHistory;
+        }
+
+        private async Task<List<ScheduleItemDto>> GetSchedulesForWeek(ClassHistory currentClass, DateTime startDate, DateTime endDate)
         {
             var schedules = await _context.Schedules
                 .Include(s => s.Subject)
                 .Include(s => s.Teacher)
-                .Where(s => s.ClassId == student.ClassId &&
-                           s.AcademicYearId == student.Class!.AcademicYearId)
+                .Where(s => s.ClassId == currentClass.ClassId &&
+                           s.AcademicYearId == currentClass.AcademicYearId)
                 .OrderBy(s => s.DayOfWeek)
                 .ThenBy(s => s.StartTime)
                 .ToListAsync();
@@ -177,18 +209,18 @@ using System.Security.Claims;
             return scheduleItems;
         }
 
-        private async Task<bool> HasScheduleInWeek(Student student, DateTime startDate, DateTime endDate)
+        private async Task<bool> HasScheduleInWeek(ClassHistory currentClass, DateTime startDate, DateTime endDate)
         {
             var hasSchedule = await _context.Schedules
-                .AnyAsync(s => s.ClassId == student.ClassId &&
-                              s.AcademicYearId == student.Class!.AcademicYearId);
+                .AnyAsync(s => s.ClassId == currentClass.ClassId &&
+                              s.AcademicYearId == currentClass.AcademicYearId);
 
             return hasSchedule;
         }
 
-        private Task ValidateWeekInAcademicYear(Student student, DateTime startDate, DateTime endDate)
+        private Task ValidateWeekInAcademicYear(ClassHistory currentClass, DateTime startDate, DateTime endDate)
         {
-            var academicYear = student.Class?.AcademicYear;
+            var academicYear = currentClass.AcademicYear;
             if (academicYear?.StartDate == null || academicYear?.EndDate == null)
                 throw new InvalidOperationException("Năm học chưa được thiết lập");
 
@@ -239,35 +271,35 @@ using System.Security.Claims;
             return today >= startDate && today <= endDate;
         }
 
-//        private string GetDayOfWeekString(DayOfWeek dayOfWeek)
-//        {
-//            return dayOfWeek switch
-//            {
-//                DayOfWeek.Monday => "Monday",
-//                DayOfWeek.Tuesday => "Tuesday",
-//                DayOfWeek.Wednesday => "Wednesday",
-//                DayOfWeek.Thursday => "Thursday",
-//                DayOfWeek.Friday => "Friday",
-//                DayOfWeek.Saturday => "Saturday",
-//                DayOfWeek.Sunday => "Sunday",
-//                _ => "Monday"
-//            };
-//        }
+        private string GetDayOfWeekString(DayOfWeek dayOfWeek)
+        {
+            return dayOfWeek switch
+            {
+                DayOfWeek.Monday => "Monday",
+                DayOfWeek.Tuesday => "Tuesday",
+                DayOfWeek.Wednesday => "Wednesday",
+                DayOfWeek.Thursday => "Thursday",
+                DayOfWeek.Friday => "Friday",
+                DayOfWeek.Saturday => "Saturday",
+                DayOfWeek.Sunday => "Sunday",
+                _ => "Monday"
+            };
+        }
 
-//        private string GetVietnameseDayName(DayOfWeek dayOfWeek)
-//        {
-//            return dayOfWeek switch
-//            {
-//                DayOfWeek.Monday => "Thứ Hai",
-//                DayOfWeek.Tuesday => "Thứ Ba",
-//                DayOfWeek.Wednesday => "Thứ Tư",
-//                DayOfWeek.Thursday => "Thứ Năm",
-//                DayOfWeek.Friday => "Thứ Sáu",
-//                DayOfWeek.Saturday => "Thứ Bảy",
-//                DayOfWeek.Sunday => "Chủ Nhật",
-//                _ => "Thứ Hai"
-//            };
-//        }
+        private string GetVietnameseDayName(DayOfWeek dayOfWeek)
+        {
+            return dayOfWeek switch
+            {
+                DayOfWeek.Monday => "Thứ Hai",
+                DayOfWeek.Tuesday => "Thứ Ba",
+                DayOfWeek.Wednesday => "Thứ Tư",
+                DayOfWeek.Thursday => "Thứ Năm",
+                DayOfWeek.Friday => "Thứ Sáu",
+                DayOfWeek.Saturday => "Thứ Bảy",
+                DayOfWeek.Sunday => "Chủ Nhật",
+                _ => "Thứ Hai"
+            };
+        }
 
         private int CalculatePeriod(TimeOnly? startTime)
         {
@@ -276,19 +308,19 @@ using System.Security.Claims;
             var hour = startTime.Value.Hour;
             var minute = startTime.Value.Minute;
 
-//            return hour switch
-//            {
-//                7 => 1,
-//                8 => minute < 30 ? 2 : 3,
-//                9 => minute < 30 ? 3 : 4,
-//                10 => minute < 30 ? 4 : 5,
-//                13 => 6,
-//                14 => minute < 30 ? 7 : 8,
-//                15 => minute < 30 ? 8 : 9,
-//                16 => minute < 30 ? 9 : 10,
-//                _ => 1
-//            };
-//        }
+            return hour switch
+            {
+                7 => 1,
+                8 => minute < 30 ? 2 : 3,
+                9 => minute < 30 ? 3 : 4,
+                10 => minute < 30 ? 4 : 5,
+                13 => 6,
+                14 => minute < 30 ? 7 : 8,
+                15 => minute < 30 ? 8 : 9,
+                16 => minute < 30 ? 9 : 10,
+                _ => 1
+            };
+        }
 
         #endregion
     }
