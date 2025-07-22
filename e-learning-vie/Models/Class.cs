@@ -17,7 +17,4 @@ public partial class Class
 
     public virtual ICollection<ClassHistory> StudentClassHistories { get; set; } = new List<ClassHistory>();
 
-    public virtual ICollection<Student> Students { get; set; } = new List<Student>();
-
-    public virtual Teacher? Teacher { get; set; }
 }

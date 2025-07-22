@@ -23,8 +23,6 @@ public partial class Teacher
 
     public int? SchoolId { get; set; }
 
-    public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
-
     public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
 
     public virtual School? School { get; set; }

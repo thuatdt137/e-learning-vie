@@ -309,7 +309,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
             entity.Property(e => e.StudentId).HasColumnName("StudentID");
             entity.Property(e => e.TeacherId).HasColumnName("TeacherID");
 
-            entity.HasOne(d => d.AcademicYear).WithMany(p => p.StudentClassHistories)
+            entity.HasOne(d => d.AcademicYear).WithMany(p => p.ClassHistories)
                 .HasForeignKey(d => d.AcademicYearId)
                 .HasConstraintName("FK__StudentCl__Acade__59063A47");
 

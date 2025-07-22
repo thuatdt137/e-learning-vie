@@ -1,189 +1,196 @@
-﻿//using e_learning_vie.Commons;
-//using e_learning_vie.DTOs.classes;
-//using e_learning_vie.Models;
-//using e_learning_vie.Utils;
-//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.EntityFrameworkCore;
+﻿using e_learning_vie.Commons;
+using e_learning_vie.DTOs.classes;
+using e_learning_vie.Models;
+using e_learning_vie.Utils;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
-//namespace e_learning_vie.Controllers.ClassesManagement
-//{
-//    [Route("api/[controller]")]
-//    [ApiController]
-//    public class ClassesController : ControllerBase
-//    {
-//        private readonly SchoolManagementContext _context;
+namespace e_learning_vie.Controllers.ClassesManagement
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class ClassesController : ControllerBase
+    {
+        private readonly SchoolManagementContext _context;
 
-//        public ClassesController(SchoolManagementContext context)
-//        {
-//            _context = context;
-//        }
+        public ClassesController(SchoolManagementContext context)
+        {
+            _context = context;
+        }
 
-//        [HttpGet]
-//        public IActionResult GetAllClasses(int? pageNumber, int? pageSize, string? keyWord, int? schoolId)
-//        {
-//            try
-//            {
-//                var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+        // GET: api/Classes
+        [HttpGet]
+        public IActionResult GetAllClasses(int? pageNumber, int? pageSize, string? keyWord, int? schoolId)
+        {
+            try
+            {
+                var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+                keyWord = keyWord?.Trim() ?? "";
 
-//                keyWord = keyWord?.Trim() ?? "";
+                var classesQuery = _context.Classes.AsQueryable();
 
-//                var classes = _context.Classes.Select(c => new ClassListDto(c)).ToList();
+                if (schoolId.HasValue)
+                {
+                    classesQuery = classesQuery.Where(c => c.SchoolId == schoolId);
+                }
 
-//                if(schoolId != null)
-//                {
-//                    classes = classes.Where(c => c.SchoolId == schoolId).ToList();
-//                }
+                if (!string.IsNullOrEmpty(keyWord))
+                {
+                    classesQuery = classesQuery.Where(c => c.ClassName.Contains(keyWord));
+                }
 
-//                if(!string.IsNullOrEmpty(keyWord))
-//                {
-//                    classes = classes.Where(s => s.ClassName.Contains(keyWord, StringComparison.OrdinalIgnoreCase)).ToList();
-//                }
+                var totalCount = classesQuery.Count();
 
-//                if(pageSize != null && pageNumber != null)
-//                {
-//                    classes = classes
-//                    .Skip((effectivePageNumber - 1) * effectivePageSize)
-//                    .Take(effectivePageSize)
-//                    .ToList();
-//                }
+                var pagedClasses = classesQuery
+                    .Skip((effectivePageNumber - 1) * effectivePageSize)
+                    .Take(effectivePageSize)
+                    .Select(c => new
+                    {
+                        c.ClassId,
+                        c.ClassName,
+                        c.SchoolId
+                    })
+                    .ToList();
 
-//                if(classes == null || !classes.Any())
-//                {
-//                    return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No classes found!"));
-//                }
-//                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get class list success", classes));
-//            }
-//            catch(Exception ex)
-//            {
-//                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred {ex.Message}"));
-//            }
-//        }
+                if (!pagedClasses.Any())
+                {
+                    return NotFound(ApiResponse<object>.Fail("Không tìm thấy lớp nào."));
+                }
 
-//        [HttpPost]
-//        public async Task<IActionResult> CreateClass([FromBody] ClassCreateDto dto)
-//        {
-//            if(!ModelState.IsValid)
-//            {
-//                var errors = ModelState
-//                    .Where(e => e.Value?.Errors.Count > 0)
-//                    .ToDictionary(
-//                        kvp => kvp.Key,
-//                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-//                    );
-//                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
-//            }
+                return Ok(ApiResponse<object>.Success("Lấy danh sách lớp thành công.", new
+                {
+                    Total = totalCount,
+                    Data = pagedClasses
+                }));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Error($"Lỗi hệ thống: {ex.Message}"));
+            }
+        }
 
-//            try
-//            {
-//                // Kiểm tra trùng tên lớp
-//                bool isDuplicate = await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName);
-//                if(isDuplicate)
-//                {
-//                    return Conflict(ApiResponse<object>.Fail($"Tên lớp '{dto.ClassName}' đã tồn tại."));
-//                }
+        // GET: api/Classes/5
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetClassById(int id)
+        {
+            try
+            {
+                var cls = await _context.Classes
+                    .Where(c => c.ClassId == id)
+                    .Select(c => new
+                    {
+                        c.ClassId,
+                        c.ClassName,
+                        c.SchoolId
+                    })
+                    .FirstOrDefaultAsync();
 
-//                var newClass = new Class
-//                {
-//                    ClassName = dto.ClassName,
-//                    AcademicYearId = dto.AcademicYearId,
-//                    TeacherId = dto.TeacherId,
-//                    SchoolId = dto.SchoolId
-//                };
+                if (cls == null)
+                {
+                    return NotFound(ApiResponse<object>.Fail($"Không tìm thấy lớp có ID = {id}."));
+                }
 
-//                _context.Classes.Add(newClass);
-//                await _context.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Success("Lấy thông tin lớp thành công.", cls));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Error($"Lỗi hệ thống: {ex.Message}"));
+            }
+        }
 
-//                var resultDto = new ClassDetailsDto
-//                {
-//                    ClassId = newClass.ClassId,
-//                    ClassName = newClass.ClassName,
-//                    AcademicYearId = newClass.AcademicYearId,
-//                    TeacherId = newClass.TeacherId,
-//                    SchoolId = newClass.SchoolId
-//                };
+        // POST: api/Classes
+        [HttpPost]
+        public async Task<IActionResult> CreateClass([FromBody] ClassCreateDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value?.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ.", errors));
+            }
 
-//                return StatusCode(201, ApiResponse<object>.Success("Tạo lớp thành công.", resultDto));
-//            }
-//            catch(Exception ex)
-//            {
-//                return StatusCode(500, ApiResponse<object>.Fail("An error occurred while creating the class.", new { ex.Message }));
-//            }
-//        }
+            try
+            {
+                var isExist = await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName);
+                if (isExist)
+                {
+                    return Conflict(ApiResponse<object>.Fail($"Lớp '{dto.ClassName}' đã tồn tại."));
+                }
 
-//        [HttpGet("{id}")]
-//        public async Task<IActionResult> GetClassById(int id)
-//        {
-//            try
-//            {
-//                var cls = await _context.Classes.FindAsync(id);
-//                if(cls == null)
-//                {
-//                    return NotFound(ApiResponse<object>.Fail($"Class with ID {id} not found."));
+                var newClass = dto.ToClass();
 
-//                }
-//                return Ok(new ClassListDto
-//                {
-//                    ClassId = cls.ClassId,
-//                    ClassName = cls.ClassName,
-//                    AcademicYearId = cls.AcademicYearId,
-//                    TeacherId = cls.TeacherId,
-//                    SchoolId = cls.SchoolId
-//                });
-//            }
-//            catch(Exception ex)
-//            {
-//                return StatusCode(500, ApiResponse<object>.Error($"An error occurred while retrieving the class: {ex.Message}"));
-//            }
-//        }
+                _context.Classes.Add(newClass);
+                await _context.SaveChangesAsync();
 
-//        [HttpPut("{id}")]
-//        public async Task<IActionResult> UpdateClass(int id, [FromBody] ClassDetailsDto dto)
-//        {
-//            if(id != dto.ClassId)
-//            {
-//                return BadRequest(ApiResponse<object>.Fail("ID mismatch between route and payload."));
-//            }
+                return StatusCode(201, ApiResponse<object>.Success("Tạo lớp thành công.", new
+                {
+                    newClass.ClassId,
+                    newClass.ClassName,
+                    newClass.SchoolId
+                }));
+            }
+            catch (Exception ex)
+            {
+                var inner = ex.InnerException?.Message ?? ex.Message;
+                return StatusCode(500, ApiResponse<object>.Error($"Lỗi hệ thống khi tạo lớp: {inner}"));
+            }
+        }
 
-//            if(!ModelState.IsValid)
-//            {
-//                var errors = ModelState
-//                    .Where(e => e.Value?.Errors.Count > 0)
-//                    .ToDictionary(
-//                        kvp => kvp.Key,
-//                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-//                    );
-//                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
-//            }
+        // PUT: api/Classes/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateClass(int id, [FromBody] ClassUpdateDto dto)
+        {
+            if (id != dto.ClassId)
+            {
+                return BadRequest(ApiResponse<object>.Fail("ID không khớp giữa URL và dữ liệu gửi lên."));
+            }
 
-//            var existingClass = await _context.Classes.FindAsync(id);
-//            if(existingClass == null)
-//            {
-//                return NotFound(ApiResponse<object>.Fail($"Class with ID {id} not found."));
-//            }
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value?.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ.", errors));
+            }
 
-//            try
-//            {
-//                //Kiểm tra trùng tên lớp (loại trừ chính bản thân lớp đang cập nhật)
-//                bool isDuplicate = await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName && c.ClassId != id);
-//                if(isDuplicate)
-//                {
-//                    return Conflict(ApiResponse<object>.Fail($"Tên lớp '{dto.ClassName}' đã tồn tại."));
-//                }
+            try
+            {
+                var existingClass = await _context.Classes.FindAsync(id);
+                if (existingClass == null)
+                {
+                    return NotFound(ApiResponse<object>.Fail($"Không tìm thấy lớp có ID = {id}."));
+                }
 
-//                existingClass = ClassDetailsDto.map2Class(dto, existingClass);
+                bool isDuplicate = await _context.Classes
+                    .AnyAsync(c => c.ClassName == dto.ClassName && c.ClassId != id);
 
-//                await _context.SaveChangesAsync();
+                if (isDuplicate)
+                {
+                    return Conflict(ApiResponse<object>.Fail($"Tên lớp '{dto.ClassName}' đã tồn tại."));
+                }
 
-//                return Ok(ApiResponse<object>.Success("Cập nhật lớp thành công."));
-//            }
-//            catch(DbUpdateException ex)
-//            {
-//                return StatusCode(500, ApiResponse<object>.Fail($"Database update error: {ex.Message}"));
-//            }
-//            catch(Exception ex)
-//            {
-//                return StatusCode(500, ApiResponse<object>.Fail($"Unexpected error: {ex.Message}"));
-//            }
-//        }
-//    }
-//}
+                existingClass.ClassName = dto.ClassName;
+                existingClass.SchoolId = dto.SchoolId;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(ApiResponse<object>.Success("Cập nhật lớp thành công."));
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Error($"Lỗi khi cập nhật database: {ex.Message}"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Error($"Lỗi hệ thống: {ex.Message}"));
+            }
+        }
+    }
+}
