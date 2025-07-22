@@ -14,6 +14,16 @@ public class NotificationService : INotificationService
 
     public void CreateNotification(NotificationDTO notification)
     {
+        var existSchool = _context.Schools.FirstOrDefault(s => s.SchoolId == notification.SchoolId);
+        if (existSchool == null)
+        {
+            throw new KeyNotFoundException("School not found.");
+        }
+        var existAcademicYear = _context.AcademicYears.FirstOrDefault(a => a.AcademicYearId == notification.AcademicYearId);
+        if (existAcademicYear == null)
+        {
+            throw new KeyNotFoundException("Academic Year not found.");
+        }
         var entity = new Notification
         {
             Content = notification.Content,
@@ -36,6 +46,6 @@ public class NotificationService : INotificationService
             RecipientType = n.RecipientType,
             SchoolId = n.SchoolId,
             AcademicYearId = n.AcademicYearId
-        }).ToList();
+        }).OrderByDescending(n => n.DateSent).ToList();
     }
 }

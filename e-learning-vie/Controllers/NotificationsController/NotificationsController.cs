@@ -33,8 +33,21 @@ namespace e_learning_vie.Controllers.NotificationsController
         public IActionResult CreateNotification([FromBody] NotificationDTO notification)
         {
 
-
-
+            if (notification == null)
+            {
+                return BadRequest(ApiResponse<Object>.Fail("Notification data is required."));
+            }
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors
+                        .Select(e => e.ErrorMessage).ToArray()
+                    );
+                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse<object>.Fail("Invalid notification data.", errors));
+            }
             try
             {
                 _notificationService.CreateNotification(notification);
