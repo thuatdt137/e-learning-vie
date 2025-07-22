@@ -7,6 +7,8 @@ public partial class Teacher
 {
     public int TeacherId { get; set; }
 
+    public string IdentityCode { get; set; } = null!;
+
     public string FirstName { get; set; } = null!;
 
     public string LastName { get; set; } = null!;
@@ -29,5 +31,7 @@ public partial class Teacher
 
     public virtual ICollection<School> Schools { get; set; } = new List<School>();
 
-    public virtual ICollection<User> Users { get; set; } = new List<User>();
+    public virtual User? User { get; set; }
+
+    public virtual ICollection<ClassHistory> StudentClassHistories { get; set; } = new List<ClassHistory>();
 }

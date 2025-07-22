@@ -21,19 +21,11 @@ public partial class Student
 
     public string? Email { get; set; }
 
-    public int? ClassId { get; set; }
-
-    public int? SchoolId { get; set; }
-
     public virtual ICollection<Aspiration> Aspirations { get; set; } = new List<Aspiration>();
 
-    public virtual Class? Class { get; set; }
+    public virtual ICollection<StudentScore> StudentScores { get; set; } = new List<StudentScore>();
 
-    public virtual ICollection<StudentScore> Scores { get; set; } = new List<StudentScore>();
+    public virtual ICollection<ClassHistory> StudentClassHistories { get; set; } = new List<ClassHistory>();
 
-    public virtual School? School { get; set; }
-
-    public virtual ICollection<StudentClassHistory> StudentClassHistories { get; set; } = new List<StudentClassHistory>();
-
-    public virtual ICollection<User> Users { get; set; } = new List<User>();
+    public virtual User? User { get; set; }
 }

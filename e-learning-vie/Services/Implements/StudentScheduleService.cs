@@ -5,18 +5,18 @@ using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Security.Claims;
 
-namespace e_learning_vie.Services.Implements
-{
-    public class StudentScheduleService : IStudentScheduleService
-    {
-        private readonly SchoolManagementContext _context;
-        private readonly IUserContextService _userContextService;
+//namespace e_learning_vie.Services.Implements
+//{
+//    public class StudentScheduleService : IStudentScheduleService
+//    {
+//        private readonly SchoolManagementContext _context;
+//        private readonly IUserContextService _userContextService;
 
-        public StudentScheduleService(SchoolManagementContext context, IUserContextService userContextService)
-        {
-            _context = context;
-            _userContextService = userContextService;
-        }
+//        public StudentScheduleService(SchoolManagementContext context, IUserContextService userContextService)
+//        {
+//            _context = context;
+//            _userContextService = userContextService;
+//        }
 
         public async Task<StudentScheduleDto> GetScheduleAsync(ClaimsPrincipal user, int? year = null, int? weekNumber = null)
         {
@@ -132,8 +132,8 @@ namespace e_learning_vie.Services.Implements
                 .ThenInclude(c => c!.AcademicYear)
                 .FirstOrDefaultAsync(s => s.StudentId == studentId);
 
-            if (student?.Class == null)
-                throw new InvalidOperationException("Học sinh chưa được phân lớp");
+//            if (student?.Class == null)
+//                throw new InvalidOperationException("Học sinh chưa được phân lớp");
 
             return student;
         }
@@ -239,35 +239,35 @@ namespace e_learning_vie.Services.Implements
             return today >= startDate && today <= endDate;
         }
 
-        private string GetDayOfWeekString(DayOfWeek dayOfWeek)
-        {
-            return dayOfWeek switch
-            {
-                DayOfWeek.Monday => "Monday",
-                DayOfWeek.Tuesday => "Tuesday",
-                DayOfWeek.Wednesday => "Wednesday",
-                DayOfWeek.Thursday => "Thursday",
-                DayOfWeek.Friday => "Friday",
-                DayOfWeek.Saturday => "Saturday",
-                DayOfWeek.Sunday => "Sunday",
-                _ => "Monday"
-            };
-        }
+//        private string GetDayOfWeekString(DayOfWeek dayOfWeek)
+//        {
+//            return dayOfWeek switch
+//            {
+//                DayOfWeek.Monday => "Monday",
+//                DayOfWeek.Tuesday => "Tuesday",
+//                DayOfWeek.Wednesday => "Wednesday",
+//                DayOfWeek.Thursday => "Thursday",
+//                DayOfWeek.Friday => "Friday",
+//                DayOfWeek.Saturday => "Saturday",
+//                DayOfWeek.Sunday => "Sunday",
+//                _ => "Monday"
+//            };
+//        }
 
-        private string GetVietnameseDayName(DayOfWeek dayOfWeek)
-        {
-            return dayOfWeek switch
-            {
-                DayOfWeek.Monday => "Thứ Hai",
-                DayOfWeek.Tuesday => "Thứ Ba",
-                DayOfWeek.Wednesday => "Thứ Tư",
-                DayOfWeek.Thursday => "Thứ Năm",
-                DayOfWeek.Friday => "Thứ Sáu",
-                DayOfWeek.Saturday => "Thứ Bảy",
-                DayOfWeek.Sunday => "Chủ Nhật",
-                _ => "Thứ Hai"
-            };
-        }
+//        private string GetVietnameseDayName(DayOfWeek dayOfWeek)
+//        {
+//            return dayOfWeek switch
+//            {
+//                DayOfWeek.Monday => "Thứ Hai",
+//                DayOfWeek.Tuesday => "Thứ Ba",
+//                DayOfWeek.Wednesday => "Thứ Tư",
+//                DayOfWeek.Thursday => "Thứ Năm",
+//                DayOfWeek.Friday => "Thứ Sáu",
+//                DayOfWeek.Saturday => "Thứ Bảy",
+//                DayOfWeek.Sunday => "Chủ Nhật",
+//                _ => "Thứ Hai"
+//            };
+//        }
 
         private int CalculatePeriod(TimeOnly? startTime)
         {
@@ -276,19 +276,19 @@ namespace e_learning_vie.Services.Implements
             var hour = startTime.Value.Hour;
             var minute = startTime.Value.Minute;
 
-            return hour switch
-            {
-                7 => 1,
-                8 => minute < 30 ? 2 : 3,
-                9 => minute < 30 ? 3 : 4,
-                10 => minute < 30 ? 4 : 5,
-                13 => 6,
-                14 => minute < 30 ? 7 : 8,
-                15 => minute < 30 ? 8 : 9,
-                16 => minute < 30 ? 9 : 10,
-                _ => 1
-            };
-        }
+//            return hour switch
+//            {
+//                7 => 1,
+//                8 => minute < 30 ? 2 : 3,
+//                9 => minute < 30 ? 3 : 4,
+//                10 => minute < 30 ? 4 : 5,
+//                13 => 6,
+//                14 => minute < 30 ? 7 : 8,
+//                15 => minute < 30 ? 8 : 9,
+//                16 => minute < 30 ? 9 : 10,
+//                _ => 1
+//            };
+//        }
 
         #endregion
     }
