@@ -54,30 +54,30 @@ namespace e_learning_vie.Services.Implements
                 .Select(s => s.SubjectId)
                 .ToList();
             var studentScores = new List<(int StudentId, double TotalScore)>();
-            //foreach (var student in students)
-            //{
-            //    var scores = _context.StudentScores
-            //        .Where(s => s.StudentId == student.StudentId && examSubjects.Contains(s.SubjectGrade.SubjectId))
-            //        .Select(s => s.Score)
-            //        .ToList();
-            //    if (scores.Count == examSubjects.Count && scores.Count > 0)
-            //    {
-            //        double totalScore = (double)scores.Sum();
-            //        studentScores.Add((student.StudentId, totalScore));
-            //    }
-            //}
+            foreach (var student in students)
+            {
+                var scores = _context.StudentScores
+                    .Where(s => s.StudentSubject.StudentId == student.StudentId && examSubjects.Contains(s.SubjectGrade.SubjectId))
+                    .Select(s => s.Score)
+                    .ToList();
+                if (scores.Count == examSubjects.Count && scores.Count > 0)
+                {
+                    double totalScore = (double)scores.Sum();
+                    studentScores.Add((student.StudentId, totalScore));
+                }
+            }
             var ranked = studentScores.OrderByDescending(x => x.TotalScore).ToList();
 
 
             if (!ranked.Any())
                 return new { AdmissionScore = 0, Message = "No valid student scores found." };
 
-            int quotaNumber = quota.QuotaNumber.Value;
-            int admissionIndex = quotaNumber - 1;
+            var quotaNumber = quota.QuotaNumber;
+            var admissionIndex = quotaNumber - 1;
             if (admissionIndex >= ranked.Count)
                 admissionIndex = ranked.Count - 1;
 
-            double admissionScore = admissionIndex >= 0 ? ranked[admissionIndex].TotalScore : 0;
+            double admissionScore = admissionIndex >= 0 ? ranked[admissionIndex.Value].TotalScore : 0;
 
             int sameScoreCount = ranked.Count(x => x.TotalScore == admissionScore);
 
