@@ -81,7 +81,7 @@ namespace e_learning_vie.Controllers.StudentsManagement
                 return Ok(ApiResponse<object>.Success("Lấy lịch học tuần trước thành công", schedule));
             }
             catch (ArgumentException ex)
-            {
+            {   
                 return NotFound(ApiResponse<object>.Error(ex.Message));
             }
             catch (InvalidOperationException ex)

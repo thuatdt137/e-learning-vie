@@ -8,5 +8,7 @@ namespace e_learning_vie.Services.Interfaces
         SchoolDTO GetSchoolById(int id);
         dynamic AddSchool(SchoolDTO schoolDto);
         dynamic UpdateSchool(int id, SchoolDTO schoolDto);
+
+        dynamic GetAdmissionScore(int quotaId);
     }
 }
