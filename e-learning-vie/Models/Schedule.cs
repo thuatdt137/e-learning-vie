@@ -15,6 +15,10 @@ public partial class Schedule
 
     public string? DayOfWeek { get; set; }
 
+    public string? SubjectName { get; set; }
+
+    public int? Slot { get; set; }
+
     public TimeOnly? StartTime { get; set; }
 
     public TimeOnly? EndTime { get; set; }

@@ -33,4 +33,7 @@ public partial class AcademicYear
     public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
 
     public virtual ICollection<ClassHistory> ClassHistories { get; set; } = new List<ClassHistory>();
+
+    public virtual ICollection<StudentSubject> StudentSubjects { get; set; } = new List<StudentSubject>();
+
 }

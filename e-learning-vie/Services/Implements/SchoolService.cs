@@ -54,18 +54,18 @@ namespace e_learning_vie.Services.Implements
                 .Select(s => s.SubjectId)
                 .ToList();
             var studentScores = new List<(int StudentId, double TotalScore)>();
-            foreach (var student in students)
-            {
-                var scores = _context.StudentScores
-                    .Where(s => s.StudentId == student.StudentId && examSubjects.Contains(s.SubjectGrade.SubjectId))
-                    .Select(s => s.Score)
-                    .ToList();
-                if (scores.Count == examSubjects.Count && scores.Count > 0)
-                {
-                    double totalScore = (double)scores.Sum();
-                    studentScores.Add((student.StudentId, totalScore));
-                }
-            }
+            //foreach (var student in students)
+            //{
+            //    var scores = _context.StudentScores
+            //        .Where(s => s.StudentId == student.StudentId && examSubjects.Contains(s.SubjectGrade.SubjectId))
+            //        .Select(s => s.Score)
+            //        .ToList();
+            //    if (scores.Count == examSubjects.Count && scores.Count > 0)
+            //    {
+            //        double totalScore = (double)scores.Sum();
+            //        studentScores.Add((student.StudentId, totalScore));
+            //    }
+            //}
             var ranked = studentScores.OrderByDescending(x => x.TotalScore).ToList();
 
 
