@@ -47,7 +47,10 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
     public virtual DbSet<SubjectGrade> SubjectGrades { get; set; }
 
+    public virtual DbSet<StudentSubject> StudentSubjects { get; set; }
+
     public virtual DbSet<StudentScore> StudentScores { get; set; }
+
 
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -151,19 +154,42 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
         });
 
+        modelBuilder.Entity<StudentSubject>(entity =>
+        {
+            entity.HasKey(e => e.StudentSubjectId).HasName("PK__StuSubje__83JUDNEKEN88D7");
+
+            entity.Property(e => e.StudentId).HasColumnName("StudentID");
+            entity.Property(e => e.SubjectId).HasColumnName("SubjectID");
+            entity.Property(e => e.AcademicYearId).HasColumnName("AcademicYearID");
+
+            entity.HasOne(d => d.Student).WithMany(p => p.StudentSubjects)
+                  .HasForeignKey(d => d.StudentId)
+                  .HasConstraintName("FK__StudSubje__Stude__DI9JM8JE");
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.StudentSubjects)
+                .HasForeignKey(d => d.SubjectId)
+                .HasConstraintName("FK__StudSubje__Subjec__JE2JEND9");
+
+            entity.HasOne(d => d.AcademicYear).WithMany(p => p.StudentSubjects)
+                .HasForeignKey(d => d.AcademicYearId)
+                .HasConstraintName("FK__StudSubje__Acade__9JEHN7HE");
+        });
+
         modelBuilder.Entity<StudentScore>(entity =>
         {
             entity.HasKey(e => e.StudentScoreId).HasName("PK__StuScores__83JWN6H9HWN78537");
 
-            entity.Property(e => e.StudentId).HasColumnName("StudentID");
+            entity.Property(e => e.StudentSubjectId).HasColumnName("StudentSubjectID");
             entity.Property(e => e.SubjectGradeId).HasColumnName("SubjectGradeID");
 
-            entity.HasOne(d => d.Student).WithMany(p => p.StudentScores)
-                  .HasForeignKey(d => d.StudentId)
-                  .HasConstraintName("FK__StudGrades__Stude__JE26KNE7");
+            entity.HasOne(d => d.StudentSubject).WithMany(p => p.StudentScores)
+                  .HasForeignKey(d => d.StudentSubjectId)
+                  .OnDelete(DeleteBehavior.NoAction)
+                  .HasConstraintName("FK__StudGrades__StuSub__KEIDM83J");
 
             entity.HasOne(d => d.SubjectGrade).WithMany(p => p.StudentScores)
                 .HasForeignKey(d => d.SubjectGradeId)
+                .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK__StudGrades__SubGra__9DM39NE7");
 
         });

@@ -18,80 +18,81 @@ namespace e_learning_vie.Services.Implements
 
         public async Task<StudentGradeDto> GetGradesByAcademicYearAsync(ClaimsPrincipal user, int? academicYearId = null)
         {
-            var studentId = await _userContextService.GetCurrentStudentIdAsync(user);
-            if (studentId == null)
-                throw new InvalidOperationException("Không tìm thấy học sinh hiện tại");
+            //var studentId = await _userContextService.GetCurrentStudentIdAsync(user);
+            //if (studentId == null)
+            //    throw new InvalidOperationException("Không tìm thấy học sinh hiện tại");
 
-            if (academicYearId == null)
-            {
-                // Lấy năm học hiện tại từ StudentClassHistories
-                var currentStudent = await _context.Students
-                    .Include(s => s.StudentClassHistories)
-                        .ThenInclude(sch => sch.AcademicYear)
-                    .FirstOrDefaultAsync(s => s.StudentId == studentId);
+            //if (academicYearId == null)
+            //{
+            //    // Lấy năm học hiện tại từ StudentClassHistories
+            //    var currentStudent = await _context.Students
+            //        .Include(s => s.StudentClassHistories)
+            //            .ThenInclude(sch => sch.AcademicYear)
+            //        .FirstOrDefaultAsync(s => s.StudentId == studentId);
 
-                if (currentStudent == null)
-                    throw new InvalidOperationException("Không tìm thấy học sinh");
+            //    if (currentStudent == null)
+            //        throw new InvalidOperationException("Không tìm thấy học sinh");
 
-                var currentClassHistory = currentStudent.StudentClassHistories
-                    .Where(h => h.EndDate == null || h.EndDate > DateOnly.FromDateTime(DateTime.Now))
-                    .OrderByDescending(h => h.StartDate)
-                    .FirstOrDefault();
+            //    var currentClassHistory = currentStudent.StudentClassHistories
+            //        .Where(h => h.EndDate == null || h.EndDate > DateOnly.FromDateTime(DateTime.Now))
+            //        .OrderByDescending(h => h.StartDate)
+            //        .FirstOrDefault();
 
-                if (currentClassHistory?.AcademicYear == null)
-                    throw new InvalidOperationException("Học sinh chưa được phân lớp hoặc không có năm học hiện tại");
+            //    if (currentClassHistory?.AcademicYear == null)
+            //        throw new InvalidOperationException("Học sinh chưa được phân lớp hoặc không có năm học hiện tại");
 
-                academicYearId = currentClassHistory.AcademicYear.AcademicYearId;
-            }
+            //    academicYearId = currentClassHistory.AcademicYear.AcademicYearId;
+            //}
 
-            var academicYear = await _context.AcademicYears
-                .FirstOrDefaultAsync(ay => ay.AcademicYearId == academicYearId);
+            //var academicYear = await _context.AcademicYears
+            //    .FirstOrDefaultAsync(ay => ay.AcademicYearId == academicYearId);
 
-            if (academicYear == null)
-                throw new ArgumentException("Không tìm thấy năm học");
+            //if (academicYear == null)
+            //    throw new ArgumentException("Không tìm thấy năm học");
 
-            // Sử dụng cấu trúc mới: Student → StudentScore → SubjectGrade → Subject/Grade
-            var studentScores = await _context.Students
-                .Where(s => s.StudentId == studentId)
-                .SelectMany(s => s.StudentScores)
-                .Include(ss => ss.SubjectGrade)
-                    .ThenInclude(sg => sg.Subject)
-                .Include(ss => ss.SubjectGrade)
-                    .ThenInclude(sg => sg.Grade)
-                .ToListAsync();
+            //// Sử dụng cấu trúc mới: Student → StudentScore → SubjectGrade → Subject/Grade
+            //var studentScores = await _context.Students
+            //    .Where(s => s.StudentId == studentId)
+            //    .SelectMany(s => s.StudentScores)
+            //    .Include(ss => ss.SubjectGrade)
+            //        .ThenInclude(sg => sg.Subject)
+            //    .Include(ss => ss.SubjectGrade)
+            //        .ThenInclude(sg => sg.Grade)
+            //    .ToListAsync();
 
-            var grades = studentScores
-                .GroupBy(ss => ss.SubjectGrade.Subject)
-                .Select(group => new SubjectGradeDto
-                {
-                    SubjectId = group.Key.SubjectId,
-                    SubjectName = group.Key.SubjectName,
-                    Grades = group.Select(ss => new GradeItemDto
-                    {
-                        GradeId = ss.StudentScoreId,
-                        Score = ss.Score,
-                        GradeType = ss.SubjectGrade.Grade.GradeType ?? "Không xác định",
-                        Weight = ss.SubjectGrade.Weight,
-                        DateEntered = DateOnly.FromDateTime(ss.ScoreDate),
-                        Description = ss.Description
-                    }).OrderBy(g => g.DateEntered).ToList(),
+            //var grades = studentScores
+            //    .GroupBy(ss => ss.SubjectGrade.Subject)
+            //    .Select(group => new SubjectGradeDto
+            //    {
+            //        SubjectId = group.Key.SubjectId,
+            //        SubjectName = group.Key.SubjectName,
+            //        Grades = group.Select(ss => new GradeItemDto
+            //        {
+            //            GradeId = ss.StudentScoreId,
+            //            Score = ss.Score,
+            //            GradeType = ss.SubjectGrade.Grade.GradeType ?? "Không xác định",
+            //            Weight = ss.SubjectGrade.Weight,
+            //            DateEntered = DateOnly.FromDateTime(ss.ScoreDate),
+            //            Description = ss.Description
+            //        }).OrderBy(g => g.DateEntered).ToList(),
 
-                    // Tính điểm trung bình có trọng số
-                    AverageScore = CalculateWeightedAverage(group.ToList()),
-                    TotalTests = group.Count()
-                })
-                .OrderBy(s => s.SubjectName)
-                .ToList();
+            //        // Tính điểm trung bình có trọng số
+            //        AverageScore = CalculateWeightedAverage(group.ToList()),
+            //        TotalTests = group.Count()
+            //    })
+            //    .OrderBy(s => s.SubjectName)
+            //    .ToList();
 
-            var overallAverage = grades.Any() ? grades.Average(g => g.AverageScore) : 0;
+            //var overallAverage = grades.Any() ? grades.Average(g => g.AverageScore) : 0;
 
-            return new StudentGradeDto
-            {
-                AcademicYear = academicYear.YearName,
-                OverallAverage = Math.Round(overallAverage, 2),
-                SubjectGrades = grades,
-                TotalSubjects = grades.Count()
-            };
+            //return new StudentGradeDto
+            //{
+            //    AcademicYear = academicYear.YearName,
+            //    OverallAverage = Math.Round(overallAverage, 2),
+            //    SubjectGrades = grades,
+            //    TotalSubjects = grades.Count()
+            //};
+            return null;
         }
 
         /// <summary>
