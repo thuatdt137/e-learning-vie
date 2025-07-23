@@ -6,6 +6,8 @@ namespace e_learning_vie.DTOs.TeachersDto
     {
         public int TeacherId { get; set; }
 
+        public string IdentityCode { get; set; } = null!;
+
         [Required(ErrorMessage = "First name is required.")]
         public string FirstName { get; set; } = null!;
 
@@ -30,6 +32,9 @@ namespace e_learning_vie.DTOs.TeachersDto
 
     public class CreateTeacherDto
     {
+        [Required(ErrorMessage = "IdentityCode is required.")]
+        public string IdentityCode { get; set; } = null!;
+
         [Required(ErrorMessage = "First name is required.")]
         public string FirstName { get; set; }
 

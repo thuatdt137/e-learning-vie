@@ -11,16 +11,12 @@ namespace e_learning_vie.DTOs.StudentDtos
 
         public string LastName { get; set; } = null!;
 
-        public DateOnly? DateOfBirth { get; set; }
+        public DateTime? DateOfBirth { get; set; }
 
         public string? Address { get; set; }
 
         public string? Phone { get; set; }
 
         public string? Email { get; set; }
-
-        public int? ClassId { get; set; }
-
-        public int? SchoolId { get; set; }
     }
 }
