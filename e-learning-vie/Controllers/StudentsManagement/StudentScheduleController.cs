@@ -31,15 +31,15 @@ namespace e_learning_vie.Controllers.StudentsManagement
                 var schedule = await _scheduleService.GetScheduleAsync(User, year, weekNumber);
                 return Ok(ApiResponse<StudentScheduleDto>.Success("Lấy lịch học thành công", schedule));
             }
-            catch (ArgumentException ex)
+            catch(ArgumentException ex)
             {
                 return BadRequest(ApiResponse<object>.Error(ex.Message));
             }
-            catch (InvalidOperationException ex)
+            catch(InvalidOperationException ex)
             {
                 return BadRequest(ApiResponse<object>.Error(ex.Message));
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.Error($"Lỗi server: {ex.Message}"));
             }
@@ -56,11 +56,11 @@ namespace e_learning_vie.Controllers.StudentsManagement
                 var years = await _scheduleService.GetAvailableYearsAsync(User);
                 return Ok(ApiResponse<List<YearOption>>.Success("Lấy danh sách năm thành công", years));
             }
-            catch (InvalidOperationException ex)
+            catch(InvalidOperationException ex)
             {
                 return BadRequest(ApiResponse<object>.Error(ex.Message));
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.Error($"Lỗi server: {ex.Message}"));
             }
@@ -78,22 +78,15 @@ namespace e_learning_vie.Controllers.StudentsManagement
                 var weeks = await _scheduleService.GetAvailableWeeksAsync(User, year);
                 return Ok(ApiResponse<List<WeekOption>>.Success($"Lấy danh sách tuần năm {year} thành công", weeks));
             }
-            catch (ArgumentException ex)
-<<<<<<< HEAD
-            {   
+            catch(ArgumentException ex)
+            {
                 return NotFound(ApiResponse<object>.Error(ex.Message));
             }
-            catch (InvalidOperationException ex)
-=======
->>>>>>> b858a696299dec3dc39f564acd6e2ff82a135f7a
+            catch(InvalidOperationException ex)
             {
                 return BadRequest(ApiResponse<object>.Error(ex.Message));
             }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ApiResponse<object>.Error(ex.Message));
-            }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.Error($"Lỗi server: {ex.Message}"));
             }
