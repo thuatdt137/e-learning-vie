@@ -158,5 +158,23 @@ namespace e_learning_vie.Controllers
             }
         }
 
+        [HttpGet("admission-score/{quotaId}")]
+        public IActionResult GetAdmissionScore(int quotaId)
+        {
+            try
+            {
+                var admissionScore = _schoolService.GetAdmissionScore(quotaId);
+                if (admissionScore == null)
+                {
+                    return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail($"No admission score found for quota ID {quotaId}."));
+                }
+                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get admission score success", admissionScore));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Error($"An error occurred: {ex.Message}"));
+            }
+        }
+
     }
 }
