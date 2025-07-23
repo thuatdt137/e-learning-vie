@@ -9,7 +9,7 @@ namespace e_learning_vie.Controllers.StudentsManagement
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Student")]
+    [Authorize]
     public class StudentAspirationController : ControllerBase
     {
         private readonly IStudentAspirationService _aspirationService;
@@ -20,6 +20,7 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         [HttpGet]
+        [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetAspirations([FromQuery] int? academicYearId = null)
         {
             try
@@ -38,6 +39,7 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         [HttpPost]
+        [Authorize(Roles = "Student")]
         public async Task<IActionResult> CreateAspiration([FromBody] CreateAspirationDto request)
         {
             if (!ModelState.IsValid)
@@ -73,6 +75,7 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         [HttpGet("available-schools")]
+        [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetAvailableSchools([FromQuery] SchoolType schoolType = SchoolType.C3)
         {
             try
@@ -98,6 +101,7 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         [HttpDelete("{aspirationId}")]
+        [Authorize(Roles = "Student")]
         public async Task<IActionResult> DeleteAspiration(int aspirationId)
         {
             try
@@ -120,6 +124,7 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         [HttpPut("{aspirationId}")]
+        [Authorize(Roles = "Student")]
         public async Task<IActionResult> UpdateAspiration(int aspirationId, [FromBody] CreateAspirationDto request)
         {
             if (!ModelState.IsValid)
