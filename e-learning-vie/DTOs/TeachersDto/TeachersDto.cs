@@ -56,4 +56,23 @@ namespace e_learning_vie.DTOs.TeachersDto
         [Required(ErrorMessage = "School ID is required.")]
         public int SchoolId { get; set; }
     }
+
+    public class TeacherScheduleDto
+    {
+        public int? ClassId { get; set; }
+
+        public string? DayOfWeek { get; set; }
+
+        public string? SubjectName { get; set; }
+
+        public int? Slot { get; set; }
+
+        public TimeOnly? StartTime { get; set; }
+
+        public TimeOnly? EndTime { get; set; }
+
+        public string? Room { get; set; }
+
+    }
+
 }

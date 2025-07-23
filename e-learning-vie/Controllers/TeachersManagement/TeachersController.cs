@@ -60,7 +60,7 @@ namespace e_learning_vie.Controllers.TeachersManagement
                                                   s.Email.Contains(keyWord, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
 
-                if (pageNumber.HasValue || pageSize.HasValue)
+                if (pageNumber.HasValue && pageSize.HasValue)
                 {
                     var totalItems = await _context.Teachers.CountAsync();
 
@@ -74,7 +74,7 @@ namespace e_learning_vie.Controllers.TeachersManagement
                         return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get teachers list success", new PaginatedResponse<TeachersDto>(teachers, totalItems, effectivePageNumber, effectivePageSize)));
                     }
                 }
-
+                //kiểm tra nếu danh sách không tồn tại hoặc có tồn tại nhưng rỗng
                 if (teachers == null || !teachers.Any())
                 {
                     return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No teacher found!"));
@@ -283,6 +283,38 @@ namespace e_learning_vie.Controllers.TeachersManagement
                 $"Danh sách giáo viên của trường {schoolId}",
                 teachers
             ));
+        }
+
+        [HttpGet("{teacherId}/weekly-schedule")]
+        public async Task<IActionResult> GetWeeklySchedule(int teacherId)
+        {
+            // Danh sách các thứ từ Thứ Hai đến Thứ Sáu
+            var validDays = new List<string>
+    {
+        "Thứ Hai",
+        "Thứ Ba",
+        "Thứ Tư",
+        "Thứ Năm",
+        "Thứ Sáu"
+    };
+
+            var schedules = await _context.Schedules
+                .Where(s => s.TeacherId == teacherId && validDays.Contains(s.DayOfWeek!))
+                .OrderBy(s => s.DayOfWeek)
+                .ThenBy(s => s.Slot)
+                .Select(s => new TeacherScheduleDto
+                {
+                    DayOfWeek = s.DayOfWeek!,
+                    SubjectName = s.SubjectName!,
+                    Slot = s.Slot,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    Room = s.Room,
+                    ClassId = s.ClassId
+                })
+                .ToListAsync();
+
+            return Ok(schedules);
         }
 
         private bool TeacherExists(int id)
