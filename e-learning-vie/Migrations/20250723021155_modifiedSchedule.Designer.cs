@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using e_learning_vie.Models;
 
@@ -11,9 +12,11 @@ using e_learning_vie.Models;
 namespace e_learning_vie.Migrations
 {
     [DbContext(typeof(SchoolManagementContext))]
-    partial class SchoolManagementContextModelSnapshot : ModelSnapshot
+    [Migration("20250723021155_modifiedSchedule")]
+    partial class modifiedSchedule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -654,9 +657,9 @@ namespace e_learning_vie.Migrations
                     b.Property<DateTime>("ScoreDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("StudentSubjectId")
+                    b.Property<int>("StudentId")
                         .HasColumnType("int")
-                        .HasColumnName("StudentSubjectID");
+                        .HasColumnName("StudentID");
 
                     b.Property<int>("SubjectGradeId")
                         .HasColumnType("int")
@@ -665,55 +668,11 @@ namespace e_learning_vie.Migrations
                     b.HasKey("StudentScoreId")
                         .HasName("PK__StuScores__83JWN6H9HWN78537");
 
-                    b.HasIndex("StudentSubjectId");
+                    b.HasIndex("StudentId");
 
                     b.HasIndex("SubjectGradeId");
 
                     b.ToTable("StudentScores");
-                });
-
-            modelBuilder.Entity("e_learning_vie.Models.StudentSubject", b =>
-                {
-                    b.Property<int>("StudentSubjectId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StudentSubjectId"));
-
-                    b.Property<int>("AcademicYearId")
-                        .HasColumnType("int")
-                        .HasColumnName("AcademicYearID");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool?>("IsProgress")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("ScoreDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("StudentId")
-                        .HasColumnType("int")
-                        .HasColumnName("StudentID");
-
-                    b.Property<int>("SubjectId")
-                        .HasColumnType("int")
-                        .HasColumnName("SubjectID");
-
-                    b.HasKey("StudentSubjectId")
-                        .HasName("PK__StuSubje__83JUDNEKEN88D7");
-
-                    b.HasIndex("AcademicYearId");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("SubjectId");
-
-                    b.ToTable("StudentSubjects");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Subject", b =>
@@ -1141,53 +1100,23 @@ namespace e_learning_vie.Migrations
 
             modelBuilder.Entity("e_learning_vie.Models.StudentScore", b =>
                 {
-                    b.HasOne("e_learning_vie.Models.StudentSubject", "StudentSubject")
+                    b.HasOne("e_learning_vie.Models.Student", "Student")
                         .WithMany("StudentScores")
-                        .HasForeignKey("StudentSubjectId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("FK__StudGrades__StuSub__KEIDM83J");
+                        .HasConstraintName("FK__StudGrades__Stude__JE26KNE7");
 
                     b.HasOne("e_learning_vie.Models.SubjectGrade", "SubjectGrade")
                         .WithMany("StudentScores")
                         .HasForeignKey("SubjectGradeId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__StudGrades__SubGra__9DM39NE7");
 
-                    b.Navigation("StudentSubject");
-
-                    b.Navigation("SubjectGrade");
-                });
-
-            modelBuilder.Entity("e_learning_vie.Models.StudentSubject", b =>
-                {
-                    b.HasOne("e_learning_vie.Models.AcademicYear", "AcademicYear")
-                        .WithMany("StudentSubjects")
-                        .HasForeignKey("AcademicYearId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK__StudSubje__Acade__9JEHN7HE");
-
-                    b.HasOne("e_learning_vie.Models.Student", "Student")
-                        .WithMany("StudentSubjects")
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK__StudSubje__Stude__DI9JM8JE");
-
-                    b.HasOne("e_learning_vie.Models.Subject", "Subject")
-                        .WithMany("StudentSubjects")
-                        .HasForeignKey("SubjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK__StudSubje__Subjec__JE2JEND9");
-
-                    b.Navigation("AcademicYear");
-
                     b.Navigation("Student");
 
-                    b.Navigation("Subject");
+                    b.Navigation("SubjectGrade");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.SubjectGrade", b =>
@@ -1251,8 +1180,6 @@ namespace e_learning_vie.Migrations
                     b.Navigation("Requests");
 
                     b.Navigation("Schedules");
-
-                    b.Navigation("StudentSubjects");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Class", b =>
@@ -1288,21 +1215,14 @@ namespace e_learning_vie.Migrations
 
                     b.Navigation("StudentClassHistories");
 
-                    b.Navigation("StudentSubjects");
+                    b.Navigation("StudentScores");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("e_learning_vie.Models.StudentSubject", b =>
-                {
-                    b.Navigation("StudentScores");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Subject", b =>
                 {
                     b.Navigation("Schedules");
-
-                    b.Navigation("StudentSubjects");
 
                     b.Navigation("SubjectGrades");
                 });

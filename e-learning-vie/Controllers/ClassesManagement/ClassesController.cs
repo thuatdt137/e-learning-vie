@@ -27,41 +27,32 @@ namespace e_learning_vie.Controllers.ClassesManagement
                 var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
                 keyWord = keyWord?.Trim() ?? "";
 
-                var classesQuery = _context.Classes.AsQueryable();
+                var classes = _context.Classes.Select(c => new ClassListDto(c)).ToList();
 
-                if (schoolId.HasValue)
+
+                if (schoolId != null)
                 {
-                    classesQuery = classesQuery.Where(c => c.SchoolId == schoolId);
+                    classes = classes.Where(c => c.SchoolId == schoolId).ToList();
                 }
 
                 if (!string.IsNullOrEmpty(keyWord))
                 {
-                    classesQuery = classesQuery.Where(c => c.ClassName.Contains(keyWord));
+                    classes = classes.Where(s => s.ClassName.Contains(keyWord, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
 
-                var totalCount = classesQuery.Count();
-
-                var pagedClasses = classesQuery
+                if (pageSize != null && pageNumber != null)
+                {
+                    classes = classes
                     .Skip((effectivePageNumber - 1) * effectivePageSize)
                     .Take(effectivePageSize)
-                    .Select(c => new
-                    {
-                        c.ClassId,
-                        c.ClassName,
-                        c.SchoolId
-                    })
                     .ToList();
-
-                if (!pagedClasses.Any())
-                {
-                    return NotFound(ApiResponse<object>.Fail("Không tìm thấy lớp nào."));
                 }
 
-                return Ok(ApiResponse<object>.Success("Lấy danh sách lớp thành công.", new
+                if (classes == null || !classes.Any())
                 {
-                    Total = totalCount,
-                    Data = pagedClasses
-                }));
+                    return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No classes found!"));
+                }
+                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get class list success", classes.ToList()));
             }
             catch (Exception ex)
             {

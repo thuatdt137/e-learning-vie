@@ -23,7 +23,7 @@ public partial class Student
 
     public virtual ICollection<Aspiration> Aspirations { get; set; } = new List<Aspiration>();
 
-    public virtual ICollection<StudentScore> StudentScores { get; set; } = new List<StudentScore>();
+    public virtual ICollection<StudentSubject> StudentSubjects { get; set; } = new List<StudentSubject>();
 
     public virtual ICollection<ClassHistory> StudentClassHistories { get; set; } = new List<ClassHistory>();
 
