@@ -10,15 +10,13 @@ public partial class User : IdentityUser<int>
 
     public int? TeacherId { get; set; }
 
+    public int? ParentId { get; set; }
+
     public bool? IsActive { get; set; }
-
-    public virtual ICollection<ActivityLog> ActivityLogs { get; set; } = new List<ActivityLog>();
-
-    public virtual ICollection<Request> RequestApprovedByNavigations { get; set; } = new List<Request>();
-
-    public virtual ICollection<Request> RequestCreatedByNavigations { get; set; } = new List<Request>();
 
     public virtual Student? Student { get; set; }
 
     public virtual Teacher? Teacher { get; set; }
+
+    public virtual Parent? Parent { get; set; }
 }

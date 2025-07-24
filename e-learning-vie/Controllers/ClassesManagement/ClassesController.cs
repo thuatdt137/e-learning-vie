@@ -20,7 +20,7 @@ namespace e_learning_vie.Controllers.ClassesManagement
 
         // GET: api/Classes
         [HttpGet]
-        public IActionResult GetAllClasses(int? pageNumber, int? pageSize, string? keyWord, int? schoolId)
+        public IActionResult GetAllClasses(int? pageNumber, int? pageSize, string? keyWord)
         {
             try
             {
@@ -28,12 +28,6 @@ namespace e_learning_vie.Controllers.ClassesManagement
                 keyWord = keyWord?.Trim() ?? "";
 
                 var classes = _context.Classes.Select(c => new ClassListDto(c)).ToList();
-
-
-                if (schoolId != null)
-                {
-                    classes = classes.Where(c => c.SchoolId == schoolId).ToList();
-                }
 
                 if (!string.IsNullOrEmpty(keyWord))
                 {
@@ -71,8 +65,7 @@ namespace e_learning_vie.Controllers.ClassesManagement
                     .Select(c => new
                     {
                         c.ClassId,
-                        c.ClassName,
-                        c.SchoolId
+                        c.ClassName
                     })
                     .FirstOrDefaultAsync();
 
@@ -120,8 +113,7 @@ namespace e_learning_vie.Controllers.ClassesManagement
                 return StatusCode(201, ApiResponse<object>.Success("Tạo lớp thành công.", new
                 {
                     newClass.ClassId,
-                    newClass.ClassName,
-                    newClass.SchoolId
+                    newClass.ClassName
                 }));
             }
             catch (Exception ex)
@@ -168,7 +160,6 @@ namespace e_learning_vie.Controllers.ClassesManagement
                 }
 
                 existingClass.ClassName = dto.ClassName;
-                existingClass.SchoolId = dto.SchoolId;
 
                 await _context.SaveChangesAsync();
 

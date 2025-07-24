@@ -1,372 +1,262 @@
-﻿using e_learning_vie.Commons;
-using e_learning_vie.DTOs.StudentDtos;
-using e_learning_vie.Models;
-using e_learning_vie.Utils;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using OfficeOpenXml;
-using System.Text;
+﻿//using e_learning_vie.Commons;
+//using e_learning_vie.DTOs.StudentDtos;
+//using e_learning_vie.Models;
+//using e_learning_vie.Utils;
+//using Microsoft.AspNetCore.Authorization;
+//using Microsoft.AspNetCore.Identity;
+//using Microsoft.AspNetCore.Mvc;
+//using Microsoft.EntityFrameworkCore;
+//using OfficeOpenXml;
+//using System.Text;
 
-namespace e_learning_vie.Controllers.StudentsManagement
-{
-    [Route("api/[controller]")]
-    [ApiController]
-    //[Authorize]
-    public class StudentsController : ControllerBase
-    {
-        private readonly SchoolManagementContext _context;
-        private readonly UserManager<User> _userManager;
+//namespace e_learning_vie.Controllers.StudentsManagement
+//{
+//    [Route("api/[controller]")]
+//    [ApiController]
+//    [Authorize]
+//    public class StudentsController : ControllerBase
+//    {
+//        private readonly SchoolManagementContext _context;
+//        private readonly UserManager<User> _userManager;
 
-        public StudentsController(SchoolManagementContext context, UserManager<User> userManager)
-        {
-            _context = context;
-            _userManager = userManager;
-        }
+//        public StudentsController(SchoolManagementContext context, UserManager<User> userManager)
+//        {
+//            _context = context;
+//            _userManager = userManager;
+//        }
 
-        // GET: api/Students
-        //[Authorize(Roles = "TrainingDepartment")]
-        [HttpGet]
-        public async Task<ActionResult<PaginatedResponse<StudentListDto>>> GetStudentsBySchool(
-            [FromQuery] int? pageNumber,
-            [FromQuery] int? pageSize)
-        {
-            // Get validated pagination parameters
-            var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+//        // GET: api/Students
+//        [Authorize(Roles = "TrainingDepartment")]
+//        [HttpGet]
+//        public async Task<ActionResult<PaginatedResponse<StudentListDto>>> GetStudentsBySchool(
+//            [FromQuery] int? pageNumber,
+//            [FromQuery] int? pageSize)
+//        {
+            
 
-            // Get total count
-            var totalItems = await _context.Students.CountAsync();
+//            return Ok(ApiResponse<PaginatedResponse<StudentListDto>>.Success(
+//                "Danh sách student"
+//            ));
+//        }
 
-            // Get paginated data
-            var students = await _context.Students
-                .AsNoTracking()
-                .Select(s => new
-                {
-                    Student = s,
-                    LatestClassHistory = s.StudentClassHistories
-                        .OrderByDescending(ch => ch.StartDate)
-                        .FirstOrDefault()
-                })
-                .OrderBy(x => x.Student.StudentId)
-                .Skip((effectivePageNumber - 1) * effectivePageSize)
-                .Take(effectivePageSize)
-                .Select(x => new StudentListDto
-                {
-                    StudentId = x.Student.StudentId,
-                    IdentityCode = x.Student.IdentityCode,
-                    FirstName = x.Student.FirstName,
-                    LastName = x.Student.LastName,
-                    ClassId = x.LatestClassHistory.ClassId,
-                    SchoolId = x.LatestClassHistory.SchoolId
-                })
-                .ToListAsync();
+//        // GET: api/Students/5
+//        [HttpGet("{id}")]
+//        public async Task<ActionResult<StudentDetailsDto>> GetStudentById(int id)
+//        {
+           
 
 
-            // Create paginated response
-            var response = new PaginatedResponse<StudentListDto>(
-                items: students,
-                totalItems: totalItems,
-                pageNumber: effectivePageNumber,
-                pageSize: effectivePageSize
-            );
+//            return Ok(ApiResponse<StudentDetailsDto>.Success("Get student successfully"));
+//        }
 
-            return Ok(ApiResponse<PaginatedResponse<StudentListDto>>.Success(
-                "Danh sách student",
-                response
-            ));
-        }
+//        // PUT: api/Students/5
+//        [HttpPut("{id}")]
+//        public async Task<IActionResult> PutStudent(int id, [FromBody] StudentDetailsDto dto)
+//        {
 
-        // GET: api/Students/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<StudentDetailsDto>> GetStudentById(int id)
-        {
-            var student = await _context.Students
-                .Include(s => s.StudentClassHistories)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.StudentId == id);
+//            return StatusCode(500, ApiResponse<object>.Fail($"Unexpected error: {ex.Message}"));
 
-            if (student == null)
-            {
-                return NotFound(ApiResponse<object>.Fail("Wrong Id or Student not found."));
-            }
-
-            var latestHistory = student.StudentClassHistories
-                .OrderByDescending(ch => ch.StartDate)
-                .FirstOrDefault();
-
-            var studentDetailsDto = new StudentDetailsDto(student)
-            {
-                ClassId = latestHistory?.ClassId,
-                SchoolId = latestHistory?.SchoolId
-            };
+//            try
+//            {
+                
+//            }
+//            catch (DbUpdateException ex)
+//            {
+//                return StatusCode(500, ApiResponse<object>.Fail($"Database update error: {ex.Message}"));
+//            }
+//            catch (Exception ex)
+//            {
+//                return StatusCode(500, ApiResponse<object>.Fail($"Unexpected error: {ex.Message}"));
+//            }
+//        }
 
 
-            return Ok(ApiResponse<StudentDetailsDto>.Success("Get student successfully", studentDetailsDto));
-        }
+//        // POST: api/Students
+//        [Authorize(Roles = "TrainingDepartment")]
+//        [HttpPost]
+//        public async Task<IActionResult> CreateStudent([FromBody] StudentCreateDto dto)
+//        {
+//            // 1. Validate model
+//            if (!ModelState.IsValid)
+//            {
+//                var errors = ModelState
+//                    .Where(e => e.Value?.Errors.Count > 0)
+//                    .ToDictionary(
+//                        kvp => kvp.Key,
+//                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+//                    );
+//                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
+//            }
 
-        // PUT: api/Students/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutStudent(int id, [FromBody] StudentDetailsDto dto)
-        {
-            if (id != dto.StudentId)
-            {
-                return BadRequest(ApiResponse<object>.Fail("ID mismatch between route and payload."));
-            }
+//            // 2. Create Student and User within a transaction
+//            using var transaction = await _context.Database.BeginTransactionAsync();
+//            try
+//            {
+//                // Create Student
+//                var student = dto.ToStudent();
+//                _context.Students.Add(student);
+//                await _context.SaveChangesAsync(); // Save to generate StudentId
 
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState
-                    .Where(e => e.Value?.Errors.Count > 0)
-                    .ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-                    );
-                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
-            }
+//                // Create User
+//                var user = new User
+//                {
+//                    UserName = dto.IdentityCode,
+//                    Student = student
+//                };
 
-            var student = await _context.Students
-                .Include(s => s.StudentClassHistories)
-                .FirstOrDefaultAsync(s => s.StudentId == id);
+//                var createUserResult = await _userManager.CreateAsync(user, "User@" + dto.IdentityCode);
+//                if (!createUserResult.Succeeded)
+//                {
+//                    var errors = createUserResult.Errors
+//                        .GroupBy(e => e.Code)
+//                        .ToDictionary(
+//                            g => g.Key,
+//                            g => g.Select(e => e.Description).ToArray()
+//                        );
+//                    return BadRequest(ApiResponse<object>.Fail("Không tạo được tài khoản người dùng.", errors));
+//                }
 
-            if (student == null)
-            {
-                return NotFound(ApiResponse<object>.Fail($"Student with ID {id} not found."));
-            }
+//                // Assign role
+//                await _userManager.AddToRoleAsync(user, "Student");
 
-            try
-            {
-                // Cập nhật các field thông tin cá nhân
-                student = StudentDetailsDto.map2Student(dto, student);
+//                // Commit transaction
+//                await transaction.CommitAsync();
 
-                // Lấy bản ghi classHistory hiện tại (ToDate == null hoặc FromDate mới nhất)
-                var currentHistory = student.StudentClassHistories
-                    .OrderByDescending(ch => ch.StartDate)
-                    .FirstOrDefault();
-
-                // Nếu khác ClassId hoặc SchoolId → thêm bản ghi mới
-                if (dto.ClassId != currentHistory?.ClassId || dto.SchoolId != currentHistory?.SchoolId)
-                {
-                    var now = DateOnly.FromDateTime(DateTime.UtcNow);
-
-                    // Đóng bản ghi hiện tại nếu có
-                    if (currentHistory != null && currentHistory.EndDate == null)
-                    {
-                        currentHistory.EndDate = now;
-                    }
-
-                    // Tạo bản ghi mới
-                    var newHistory = new ClassHistory
-                    {
-                        StudentId = student.StudentId,
-                        ClassId = dto.ClassId ?? 0,
-                        SchoolId = dto.SchoolId ?? 0,
-                        StartDate = now,
-                        EndDate = null
-                    };
-                    _context.ClassHistories.Add(newHistory);
-                }
-
-                await _context.SaveChangesAsync();
-                return Ok(ApiResponse<object>.Success("Save student successfully"));
-            }
-            catch (DbUpdateException ex)
-            {
-                return StatusCode(500, ApiResponse<object>.Fail($"Database update error: {ex.Message}"));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse<object>.Fail($"Unexpected error: {ex.Message}"));
-            }
-        }
+//                // 3. Return success response
+//                return StatusCode(201, ApiResponse<object>.Success(
+//                    "Tạo student thành công.",
+//                    new
+//                    {
+//                        student.StudentId,
+//                        student.FirstName,
+//                        student.LastName,
+//                        student.IdentityCode,
+//                        user.Id
+//                    }
+//                ));
+//            }
+//            catch (Exception ex)
+//            {
+//                await transaction.RollbackAsync();
+//                return StatusCode(500, ApiResponse<object>.Fail("An error occurred while creating the student.", null));
+//            }
+//        }
 
 
-        // POST: api/Students
-        [Authorize(Roles = "TrainingDepartment")]
-        [HttpPost]
-        public async Task<IActionResult> CreateStudent([FromBody] StudentCreateDto dto)
-        {
-            // 1. Validate model
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState
-                    .Where(e => e.Value?.Errors.Count > 0)
-                    .ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-                    );
-                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
-            }
+//        [HttpGet("test-cause-error")]
+//        public IActionResult CauseError()
+//        {
+//            int a = 0;
+//            int result = 1 / a;
 
-            // 2. Create Student and User within a transaction
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                // Create Student
-                var student = dto.ToStudent();
-                _context.Students.Add(student);
-                await _context.SaveChangesAsync(); // Save to generate StudentId
+//            return Ok(result);
+//        }
 
-                // Create User
-                var user = new User
-                {
-                    UserName = dto.IdentityCode,
-                    Student = student
-                };
+//        private bool StudentExists(int id)
+//        {
+//            return _context.Students.Any(e => e.StudentId == id);
+//        }
 
-                var createUserResult = await _userManager.CreateAsync(user, "User@" + dto.IdentityCode);
-                if (!createUserResult.Succeeded)
-                {
-                    var errors = createUserResult.Errors
-                        .GroupBy(e => e.Code)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => g.Select(e => e.Description).ToArray()
-                        );
-                    return BadRequest(ApiResponse<object>.Fail("Không tạo được tài khoản người dùng.", errors));
-                }
+//        //Import Excel
+//        [HttpPost("import-students")]
+//        public async Task<IActionResult> ImportStudentsFromExcel(IFormFile file)
+//        {
+//            if (file == null || file.Length == 0)
+//                return BadRequest("Vui lòng chọn file Excel.");
 
-                // Assign role
-                await _userManager.AddToRoleAsync(user, "Student");
+//            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
-                // Commit transaction
-                await transaction.CommitAsync();
+//            var studentsToAdd = new List<Student>();
 
-                // 3. Return success response
-                return StatusCode(201, ApiResponse<object>.Success(
-                    "Tạo student thành công.",
-                    new
-                    {
-                        student.StudentId,
-                        student.FirstName,
-                        student.LastName,
-                        student.IdentityCode,
-                        user.Id
-                    }
-                ));
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return StatusCode(500, ApiResponse<object>.Fail("An error occurred while creating the student.", null));
-            }
-        }
+//            using var stream = new MemoryStream();
+//            await file.CopyToAsync(stream);
+//            using var package = new ExcelPackage(stream);
+//            var worksheet = package.Workbook.Worksheets[0];
 
+//            int rowCount = worksheet.Dimension.Rows;
 
-        [HttpGet("test-cause-error")]
-        public IActionResult CauseError()
-        {
-            int a = 0;
-            int result = 1 / a;
+//            for (int row = 2; row <= rowCount; row++)
+//            {
+//                var identityCode = worksheet.Cells[row, 1].Text.Trim();
+//                var firstName = worksheet.Cells[row, 2].Text.Trim();
+//                var lastName = worksheet.Cells[row, 3].Text.Trim();
+//                var dobText = worksheet.Cells[row, 4].Text.Trim();
+//                var address = worksheet.Cells[row, 5].Text.Trim();
+//                var phone = worksheet.Cells[row, 6].Text.Trim();
+//                var email = worksheet.Cells[row, 7].Text.Trim();
 
-            return Ok(result);
-        }
+//                // Check duplicate in DB
+//                bool isDuplicate = await _context.Students.AnyAsync(s =>
+//                    (identityCode != "" && s.IdentityCode == identityCode) ||
+//                    (phone != "" && s.Phone == phone) ||
+//                    (email != "" && s.Email == email));
 
-        private bool StudentExists(int id)
-        {
-            return _context.Students.Any(e => e.StudentId == id);
-        }
+//                if (isDuplicate)
+//                    continue; // Skip this row
 
-        //Import Excel
-        [HttpPost("import-students")]
-        public async Task<IActionResult> ImportStudentsFromExcel(IFormFile file)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest("Vui lòng chọn file Excel.");
+//                // Parse Date
+//                DateTime? dob = null;
+//                if (DateTime.TryParse(dobText, out var parsedDate))
+//                    dob = parsedDate;
 
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+//                studentsToAdd.Add(new Student
+//                {
+//                    IdentityCode = identityCode == "" ? null : identityCode,
+//                    FirstName = firstName,
+//                    LastName = lastName,
+//                    DateOfBirth = dob.HasValue ? DateOnly.FromDateTime(dob.Value) : null,
+//                    Address = address == "" ? null : address,
+//                    Phone = phone == "" ? null : phone,
+//                    Email = email == "" ? null : email
+//                });
+//            }
 
-            var studentsToAdd = new List<Student>();
+//            _context.Students.AddRange(studentsToAdd);
+//            await _context.SaveChangesAsync();
 
-            using var stream = new MemoryStream();
-            await file.CopyToAsync(stream);
-            using var package = new ExcelPackage(stream);
-            var worksheet = package.Workbook.Worksheets[0];
-
-            int rowCount = worksheet.Dimension.Rows;
-
-            for (int row = 2; row <= rowCount; row++)
-            {
-                var identityCode = worksheet.Cells[row, 1].Text.Trim();
-                var firstName = worksheet.Cells[row, 2].Text.Trim();
-                var lastName = worksheet.Cells[row, 3].Text.Trim();
-                var dobText = worksheet.Cells[row, 4].Text.Trim();
-                var address = worksheet.Cells[row, 5].Text.Trim();
-                var phone = worksheet.Cells[row, 6].Text.Trim();
-                var email = worksheet.Cells[row, 7].Text.Trim();
-
-                // Check duplicate in DB
-                bool isDuplicate = await _context.Students.AnyAsync(s =>
-                    (identityCode != "" && s.IdentityCode == identityCode) ||
-                    (phone != "" && s.Phone == phone) ||
-                    (email != "" && s.Email == email));
-
-                if (isDuplicate)
-                    continue; // Skip this row
-
-                // Parse Date
-                DateTime? dob = null;
-                if (DateTime.TryParse(dobText, out var parsedDate))
-                    dob = parsedDate;
-
-                studentsToAdd.Add(new Student
-                {
-                    IdentityCode = identityCode == "" ? null : identityCode,
-                    FirstName = firstName,
-                    LastName = lastName,
-                    DateOfBirth = dob.HasValue ? DateOnly.FromDateTime(dob.Value) : null,
-                    Address = address == "" ? null : address,
-                    Phone = phone == "" ? null : phone,
-                    Email = email == "" ? null : email
-                });
-            }
-
-            _context.Students.AddRange(studentsToAdd);
-            await _context.SaveChangesAsync();
-
-            return Ok(ApiResponse<string>.Success($"Đã thêm {studentsToAdd.Count} sinh viên từ Excel."));
-        }
+//            return Ok(ApiResponse<string>.Success($"Đã thêm {studentsToAdd.Count} sinh viên từ Excel."));
+//        }
 
 
-        //Export Excel
-        [HttpGet("export-students")]
-        public async Task<IActionResult> ExportStudentsToExcel()
-        {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+//        //Export Excel
+//        [HttpGet("export-students")]
+//        public async Task<IActionResult> ExportStudentsToExcel()
+//        {
+//            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
-            var students = await _context.Students.AsNoTracking().ToListAsync();
+//            var students = await _context.Students.AsNoTracking().ToListAsync();
 
-            using var package = new ExcelPackage();
-            var worksheet = package.Workbook.Worksheets.Add("Students");
+//            using var package = new ExcelPackage();
+//            var worksheet = package.Workbook.Worksheets.Add("Students");
 
-            // Header
-            worksheet.Cells[1, 1].Value = "IdentityCode";
-            worksheet.Cells[1, 2].Value = "FirstName";
-            worksheet.Cells[1, 3].Value = "LastName";
-            worksheet.Cells[1, 4].Value = "DateOfBirth";
-            worksheet.Cells[1, 5].Value = "Address";
-            worksheet.Cells[1, 6].Value = "Phone";
-            worksheet.Cells[1, 7].Value = "Email";
+//            // Header
+//            worksheet.Cells[1, 1].Value = "IdentityCode";
+//            worksheet.Cells[1, 2].Value = "FirstName";
+//            worksheet.Cells[1, 3].Value = "LastName";
+//            worksheet.Cells[1, 4].Value = "DateOfBirth";
+//            worksheet.Cells[1, 5].Value = "Address";
+//            worksheet.Cells[1, 6].Value = "Phone";
+//            worksheet.Cells[1, 7].Value = "Email";
 
-            int row = 2;
-            foreach (var student in students)
-            {
-                worksheet.Cells[row, 1].Value = student.IdentityCode;
-                worksheet.Cells[row, 2].Value = student.FirstName;
-                worksheet.Cells[row, 3].Value = student.LastName;
-                worksheet.Cells[row, 4].Value = student.DateOfBirth?.ToString("yyyy-MM-dd");
-                worksheet.Cells[row, 5].Value = student.Address;
-                worksheet.Cells[row, 6].Value = student.Phone;
-                worksheet.Cells[row, 7].Value = student.Email;
-                row++;
-            }
+//            int row = 2;
+//            foreach (var student in students)
+//            {
+//                worksheet.Cells[row, 1].Value = student.IdentityCode;
+//                worksheet.Cells[row, 2].Value = student.FirstName;
+//                worksheet.Cells[row, 3].Value = student.LastName;
+//                worksheet.Cells[row, 4].Value = student.DateOfBirth?.ToString("yyyy-MM-dd");
+//                worksheet.Cells[row, 5].Value = student.Address;
+//                worksheet.Cells[row, 6].Value = student.Phone;
+//                worksheet.Cells[row, 7].Value = student.Email;
+//                row++;
+//            }
 
-            var stream = new MemoryStream();
-            package.SaveAs(stream);
-            stream.Position = 0;
+//            var stream = new MemoryStream();
+//            package.SaveAs(stream);
+//            stream.Position = 0;
 
-            return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "students.xlsx");
-        }
+//            return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "students.xlsx");
+//        }
 
-    }
-}
+//    }
+//}

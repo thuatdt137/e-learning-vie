@@ -13,11 +13,7 @@ public partial class Notification
 
     public string? RecipientType { get; set; }
 
-    public int? SchoolId { get; set; }
-
     public int? AcademicYearId { get; set; }
 
     public virtual AcademicYear? AcademicYear { get; set; }
-
-    public virtual School? School { get; set; }
 }

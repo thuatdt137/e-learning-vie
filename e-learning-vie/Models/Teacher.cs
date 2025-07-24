@@ -13,6 +13,8 @@ public partial class Teacher
 
     public string LastName { get; set; } = null!;
 
+    public bool IsMale { get; set; }
+
     public DateOnly? DateOfBirth { get; set; }
 
     public string? Address { get; set; }
@@ -21,15 +23,11 @@ public partial class Teacher
 
     public string? Email { get; set; }
 
-    public int? SchoolId { get; set; }
+    public virtual ICollection<ClassSession> ClassSessions { get; set; } = new List<ClassSession>();
 
-    public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
+    public virtual ICollection<TeachingAssignment> TeachingAssignments { get; set; } = new List<TeachingAssignment>();
 
-    public virtual School? School { get; set; }
 
-    public virtual ICollection<School> Schools { get; set; } = new List<School>();
 
     public virtual User? User { get; set; }
-
-    public virtual ICollection<ClassHistory> StudentClassHistories { get; set; } = new List<ClassHistory>();
 }

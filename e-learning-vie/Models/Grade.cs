@@ -1,15 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace e_learning_vie.Models;
-
-public partial class Grade
+﻿namespace e_learning_vie.Models
 {
-    public int GradeId { get; set; }
+    public partial class Grade
+    {
+        public int GradeId { get; set; }
+        public string GradeName { get; set; }
+        public string GradeDescription { get; set;}
 
-    public string? GradeType { get; set; }
+        public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
+        public virtual ICollection<Subject> Subjects { get; set; } = new List<Subject>();
 
-    public string? Description { get; set; }
-
-    public ICollection<SubjectGrade> SubjectGrades { get; set;} = new List<SubjectGrade>();
+    }
 }

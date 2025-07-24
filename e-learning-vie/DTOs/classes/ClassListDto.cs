@@ -18,7 +18,6 @@ namespace e_learning_vie.DTOs.classes
         {
             ClassId = newClass.ClassId;
             ClassName = newClass.ClassName;
-            SchoolId = newClass.SchoolId;
         }
     }
 }

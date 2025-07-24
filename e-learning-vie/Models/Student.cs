@@ -13,6 +13,8 @@ public partial class Student
 
     public string LastName { get; set; } = null!;
 
+    public bool IsMale { get; set; }
+
     public DateOnly? DateOfBirth { get; set; }
 
     public string? Address { get; set; }
@@ -21,11 +23,7 @@ public partial class Student
 
     public string? Email { get; set; }
 
-    public virtual ICollection<Aspiration> Aspirations { get; set; } = new List<Aspiration>();
-
-    public virtual ICollection<StudentSubject> StudentSubjects { get; set; } = new List<StudentSubject>();
-
-    public virtual ICollection<ClassHistory> StudentClassHistories { get; set; } = new List<ClassHistory>();
+    public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
 
     public virtual User? User { get; set; }
 }
