@@ -49,6 +49,12 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
     public virtual DbSet<TeachingAssignment> TeachingAssignments { get; set; }
 
+    public virtual DbSet<Slot> Slots { get; set; }
+
+    public virtual DbSet<Attendance> Attendances { get; set; }
+
+    public virtual DbSet<SubjectGroup> SubjectGroups { get; set; }
+
 
 
 
@@ -218,6 +224,45 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
             entity.HasOne(d => d.ClassSession).WithMany(p => p.Enrollments)
                 .HasForeignKey(d => d.ClassSessionId)
                 .HasConstraintName("FK__Enrollment__ClassSession");
+
+        });
+
+        modelBuilder.Entity<Attendance>(entity =>
+        {
+            entity.HasKey(e => e.AttendanceId).HasName("PK__Attendance__98USDF9S8DUF");
+
+            entity.Property(e => e.AttendanceId).HasColumnName("AttendanceID");
+
+            entity.Property(e => e.StudentId).HasColumnName("StudentID");
+            entity.HasOne(d => d.Student).WithMany(p => p.Attendances)
+                .HasForeignKey(d => d.StudentId)
+                .HasConstraintName("FK__Attendance__Student");
+
+            entity.Property(e => e.ScheduleId).HasColumnName("ScheduleID");
+            entity.HasOne(d => d.Schedule).WithMany(p => p.Attendances)
+                .HasForeignKey(d => d.ScheduleId)
+                .HasConstraintName("FK__Attendance__Schedule");
+
+        });
+
+        modelBuilder.Entity<Slot>(entity =>
+        {
+            entity.HasKey(e => e.SlotId).HasName("PK__Slot__9OS8DJF98S");
+
+            entity.Property(e => e.SlotId).HasColumnName("SlotID");
+
+        });
+
+        modelBuilder.Entity<SubjectGroup>(entity =>
+        {
+            entity.HasKey(e => e.SubjectGroupId).HasName("PK__SubjectGroup__J908SFJ23J");
+
+            entity.Property(e => e.SubjectGroupId).HasColumnName("SubjectGroupID");
+
+            entity.Property(e => e.LeadTeacherId).HasColumnName("LeadTeacherID");
+            entity.HasOne(d => d.LeadTeacher).WithMany(p => p.SubjectGroups)
+                .HasForeignKey(d => d.LeadTeacherId)
+                .HasConstraintName("FK__SubjectGroup__Teacher");
 
         });
 

@@ -10,5 +10,7 @@
         public virtual Teacher? Teacher { get; set; }
         public virtual Subject? Subject { get; set; }
         public virtual ClassSession Session { get; set; } = null!;
+
+        public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
     }
 }

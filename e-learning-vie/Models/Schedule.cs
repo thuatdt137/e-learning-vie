@@ -7,31 +7,18 @@ public partial class Schedule
 {
     public int ScheduleId { get; set; }
 
-    public int? ClassId { get; set; }
+    public int TeachingAssignmentId { get; set; }
 
-    public int? SubjectId { get; set; }
+    public DateOnly Date { get; set; }
 
-    public int? TeacherId { get; set; }
-
-    public string? DayOfWeek { get; set; }
-
-    public string? SubjectName { get; set; }
-
-    public int? Slot { get; set; }
-
-    public TimeOnly? StartTime { get; set; }
-
-    public TimeOnly? EndTime { get; set; }
+    public int SlotId { get; set; }
 
     public string? Room { get; set; }
 
-    public int? AcademicYearId { get; set; }
+    public virtual Slot Slot { get; set; }
 
-    public virtual AcademicYear? AcademicYear { get; set; }
+    public virtual TeachingAssignment TeachingAssignment { get; set; } = null!;
 
-    public virtual Class? Class { get; set; }
+    public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
 
-    public virtual Subject? Subject { get; set; }
-
-    public virtual Teacher? Teacher { get; set; }
 }
