@@ -9,11 +9,17 @@ public partial class Subject
 
     public string SubjectName { get; set; } = null!;
 
-    public string SubjectType { get; set; } = null!;
+    public bool IsMainSubject { get; set; }
 
-    public virtual ICollection<SubjectGrade> SubjectGrades { get; set; } = new List<SubjectGrade>();
+    public int SubjectPeriod { get; set; }
 
-    public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
+    public int GradeId { get; set; }
 
-    public virtual ICollection<StudentSubject> StudentSubjects { get; set; } = new List<StudentSubject>();
+    public virtual ICollection<StudentScore> StudentScores { get; set; } = new List<StudentScore>();
+
+    public virtual ICollection<TeachingAssignment> TeachingAssignments { get; set; } = new List<TeachingAssignment>();
+
+
+
+    public virtual Grade Grade { get; set; }
 }

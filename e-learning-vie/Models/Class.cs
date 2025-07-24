@@ -9,12 +9,12 @@ public partial class Class
 
     public string ClassName { get; set; } = null!;
 
-    public int? SchoolId { get; set; }
+    public int? GradeId { get; set; }
 
-    public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
+    public virtual ICollection<ClassSession> ClassSessions { get; set; } = new List<ClassSession>();
 
-    public virtual School? School { get; set; }
 
-    public virtual ICollection<ClassHistory> StudentClassHistories { get; set; } = new List<ClassHistory>();
+
+    public virtual Grade Grade { get; set; }
 
 }

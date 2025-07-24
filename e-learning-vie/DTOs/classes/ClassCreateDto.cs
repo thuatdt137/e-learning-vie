@@ -9,14 +9,11 @@ namespace e_learning_vie.DTOs.classes
         [StringLength(20, ErrorMessage = "ClassName có độ dài tối đa 20 ký tự.")]
         public string ClassName { get; set; } = null!;
 
-        public int? SchoolId { get; set; }
-
         public Class ToClass()
         {
             return new Class
             {
-                ClassName = this.ClassName,
-                SchoolId = this.SchoolId,
+                ClassName = this.ClassName
             };
         }
     }
