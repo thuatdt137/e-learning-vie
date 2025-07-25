@@ -224,11 +224,30 @@ namespace e_learning_vie.Controllers.BusinessManagement
         [HttpGet("student-distribution")]
         public async Task<ActionResult<IEnumerable<GradeDistributionDto>>> GetStudentDistribution()
         {
+            // Danh sách các khối lớp mục tiêu
             var targetGrades = new[] { "Khối 6", "Khối 7", "Khối 8", "Khối 9" };
 
+            // Lấy AcademicYearId và YearName mới nhất
+            var latestAcademicYear = await _context.AcademicYears
+                .OrderByDescending(ay => ay.AcademicYearId)//newest
+                .Select(ay => new { ay.AcademicYearId, ay.YearName })
+                .FirstOrDefaultAsync();
+
+            // Nếu không có năm học nào, trả về danh sách rỗng
+            if (latestAcademicYear == null)
+            {
+                return Ok(new List<GradeDistributionDto>());
+            }
+
+            // Truy vấn Enrollments, lọc theo AcademicYearId mới nhất
             var studentCountsByGrade = await _context.Enrollments
-                .Include(e => e.ClassSession.Class.Grade)
-                .Where(e => targetGrades.Contains(e.ClassSession.Class.Grade.GradeName))
+                .Include(e => e.ClassSession)
+                    .ThenInclude(cs => cs.Class)
+                    .ThenInclude(c => c.Grade)
+                .Include(e => e.ClassSession)
+                    .ThenInclude(cs => cs.Semester)
+                .Where(e => targetGrades.Contains(e.ClassSession.Class.Grade.GradeName)
+                    && e.ClassSession.Semester.AcademicYearId == latestAcademicYear.AcademicYearId)
                 .GroupBy(e => e.ClassSession.Class.Grade.GradeName)
                 .Select(g => new
                 {
@@ -237,6 +256,7 @@ namespace e_learning_vie.Controllers.BusinessManagement
                 })
                 .ToListAsync();
 
+            // Tính tổng số học sinh
             var totalStudents = studentCountsByGrade.Sum(g => g.StudentCount);
             if (totalStudents == 0)
             {
@@ -247,7 +267,8 @@ namespace e_learning_vie.Controllers.BusinessManagement
             {
                 GradeName = g.GradeName,
                 StudentCount = g.StudentCount,
-                Percentage = Math.Round((double)g.StudentCount / totalStudents * 100, 2)
+                Percentage = $"{Math.Round((double)g.StudentCount / totalStudents * 100, 2)}%", 
+                YearName = latestAcademicYear.YearName
             }).ToList();
 
             return Ok(result);
@@ -280,56 +301,6 @@ namespace e_learning_vie.Controllers.BusinessManagement
 
             return Ok(result);
         }
-
-        // Endpoint 4: Tỷ lệ giáo viên/học sinh theo tổ bộ môn
-        // GET: api/Dashboard/teacher-student-ratio
-        //[HttpGet("teacher-student-ratio")]
-        //public async Task<ActionResult<IEnumerable<TeacherStudentRatioDto>>> GetTeacherStudentRatioBySubjectGroup()
-        //{
-        //    // Viết lại toàn bộ logic vào một câu truy vấn duy nhất
-        //    var ratioData = await _context.SubjectGroups
-        //        .Select(group => new
-        //        {
-        //            // Chọn ra các trường cần thiết
-        //            SubjectGroupName = group.SubjectGroupName,
-
-        //            // Đếm số giáo viên duy nhất trong tổ thông qua các môn học
-        //            TeacherCount = group.Subjects
-        //                                .SelectMany(s => s.TeacherSubjects) // Lấy tất cả các bản ghi TeacherSubject từ các môn học
-        //                                .Select(ts => ts.TeacherId) // Chọn ra TeacherId
-        //                                .Distinct()
-        //                                .Count(),
-
-        //            // Đếm số học sinh duy nhất học các môn trong tổ
-        //            StudentCount = _context.StudentScores
-        //                                 .Where(ss => group.Subjects.Select(s => s.SubjectId).Contains(ss.SubjectId)) // Lọc điểm của các môn trong tổ
-        //                                 .Select(ss => ss.Enrollment.StudentId) // Chọn ra StudentId
-        //                                 .Distinct()
-        //                                 .Count()
-        //        })
-        //        .ToListAsync(); // Thực thi truy vấn và lấy kết quả từ database
-
-        //    // Sau khi đã có dữ liệu, thực hiện tính toán tỷ lệ trong bộ nhớ
-        //    var result = ratioData.Select(data =>
-        //    {
-        //        string ratio = "N/A";
-        //        if (data.TeacherCount > 0 && data.StudentCount > 0)
-        //        {
-        //            double studentsPerTeacher = Math.Round((double)data.StudentCount / data.TeacherCount, 1);
-        //            ratio = $"1 : {studentsPerTeacher}";
-        //        }
-
-        //        return new TeacherStudentRatioDto
-        //        {
-        //            SubjectGroupName = data.SubjectGroupName,
-        //            TeacherCount = data.TeacherCount,
-        //            StudentCount = data.StudentCount,
-        //            Ratio = ratio
-        //        };
-        //    }).ToList();
-
-        //    return Ok(result);
-        //}
         [HttpGet("enrollment-trend")]
         public async Task<IActionResult> GetEnrollmentTrend(
     [FromQuery] int? startYear = null,

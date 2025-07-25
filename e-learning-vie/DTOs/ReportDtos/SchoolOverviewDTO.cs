@@ -15,9 +15,10 @@
         // DTO cho biểu đồ tỷ lệ học sinh
         public class GradeDistributionDto
         {
+            public string YearName { get; set; }
             public string GradeName { get; set; }
             public int StudentCount { get; set; }
-            public double Percentage { get; set; }
+            public String Percentage { get; set; }
         }
 
         // DTO cho sĩ số trung bình

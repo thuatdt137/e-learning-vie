@@ -59,7 +59,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
     public virtual DbSet<SubjectScore> SubjectScores { get; set; }
 
-
+    public virtual DbSet<Room> Rooms { get; set; }
 
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -283,6 +283,8 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
             entity.HasKey(e => e.RoomId).HasName("PK__Room__98YDS89F");
 
             entity.Property(e => e.RoomId).HasColumnName("RoomID");
+
+            entity.ToTable("Room");
 
         });
 
