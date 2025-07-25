@@ -20,7 +20,7 @@
 
         public string? Email { get; set; }
 
-        public virtual ICollection<Student> Students { get; set; } = new List<Student>();
+        public virtual ICollection<StudentParent> StudentParents { get; set; } = new List<StudentParent>();
 
         public virtual User? User { get; set; }
 
