@@ -12,7 +12,7 @@ using e_learning_vie.Models;
 namespace e_learning_vie.Migrations
 {
     [DbContext(typeof(SchoolManagementContext))]
-    [Migration("20250725025804_Init")]
+    [Migration("20250725042648_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -736,7 +736,8 @@ namespace e_learning_vie.Migrations
                         .HasColumnType("bit");
 
                     b.Property<int>("SubjectGroupId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("SubjectGroupID");
 
                     b.Property<string>("SubjectName")
                         .IsRequired()
@@ -1247,10 +1248,11 @@ namespace e_learning_vie.Migrations
                         .HasConstraintName("FK__Subject__Grade");
 
                     b.HasOne("e_learning_vie.Models.SubjectGroup", "SubjectGroup")
-                        .WithMany()
+                        .WithMany("Subjects")
                         .HasForeignKey("SubjectGroupId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK__Subject__SubGroup");
 
                     b.Navigation("Grade");
 
@@ -1431,6 +1433,11 @@ namespace e_learning_vie.Migrations
                     b.Navigation("TeacherSubjects");
 
                     b.Navigation("TeachingAssignments");
+                });
+
+            modelBuilder.Entity("e_learning_vie.Models.SubjectGroup", b =>
+                {
+                    b.Navigation("Subjects");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Teacher", b =>

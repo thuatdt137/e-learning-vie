@@ -376,6 +376,11 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
                 .HasForeignKey(d => d.GradeId)
                 .HasConstraintName("FK__Subject__Grade");
 
+            entity.Property(e => e.SubjectGroupId).HasColumnName("SubjectGroupID");
+            entity.HasOne(d => d.SubjectGroup).WithMany(p => p.Subjects)
+                .HasForeignKey(d => d.SubjectGroupId)
+                .HasConstraintName("FK__Subject__SubGroup");
+
             entity.Property(e => e.SubjectName).HasMaxLength(50);
 
         });
