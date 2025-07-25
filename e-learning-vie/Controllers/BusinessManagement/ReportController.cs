@@ -220,18 +220,39 @@ namespace e_learning_vie.Controllers.BusinessManagement
         [HttpGet("student-distribution")]
         public async Task<ActionResult<IEnumerable<GradeDistributionDto>>> GetStudentDistribution()
         {
+            // Danh sách các khối lớp mục tiêu
             var targetGrades = new[] { "Khối 6", "Khối 7", "Khối 8", "Khối 9" };
 
+            // Lấy AcademicYearId và YearName mới nhất
+            var latestAcademicYear = await _context.AcademicYears
+                .OrderByDescending(ay => ay.AcademicYearId)//newest
+                .Select(ay => new { ay.AcademicYearId, ay.YearName })
+                .FirstOrDefaultAsync();
+
+            // Nếu không có năm học nào, trả về danh sách rỗng
+            if (latestAcademicYear == null)
+            {
+                return Ok(new List<GradeDistributionDto>());
+            }
+
+            // Truy vấn Enrollments, lọc theo AcademicYearId mới nhất
             var studentCountsByGrade = await _context.Enrollments
-                .Include(e => e.ClassSession.Class.Grade)
-                .Where(e => targetGrades.Contains(e.ClassSession.Class.Grade.GradeName))
+                .Include(e => e.ClassSession)
+                    .ThenInclude(cs => cs.Class)
+                    .ThenInclude(c => c.Grade)
+                .Include(e => e.ClassSession)
+                    .ThenInclude(cs => cs.Semester)
+                .Where(e => targetGrades.Contains(e.ClassSession.Class.Grade.GradeName)
+                    && e.ClassSession.Semester.AcademicYearId == latestAcademicYear.AcademicYearId)
                 .GroupBy(e => e.ClassSession.Class.Grade.GradeName)
-                .Select(g => new {
+                .Select(g => new
+                {
                     GradeName = g.Key,
                     StudentCount = g.Select(e => e.StudentId).Distinct().Count()
                 })
                 .ToListAsync();
 
+            // Tính tổng số học sinh
             var totalStudents = studentCountsByGrade.Sum(g => g.StudentCount);
             if (totalStudents == 0)
             {
@@ -242,7 +263,8 @@ namespace e_learning_vie.Controllers.BusinessManagement
             {
                 GradeName = g.GradeName,
                 StudentCount = g.StudentCount,
-                Percentage = Math.Round((double)g.StudentCount / totalStudents * 100, 2)
+                Percentage = $"{Math.Round((double)g.StudentCount / totalStudents * 100, 2)}%", 
+                YearName = latestAcademicYear.YearName
             }).ToList();
 
             return Ok(result);
