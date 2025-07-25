@@ -1,5 +1,7 @@
 ﻿using e_learning_vie.Commons;
 using e_learning_vie.Models;
+using e_learning_vie.Services.Implements;
+using e_learning_vie.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,9 +17,11 @@ namespace e_learning_vie.Controllers.BusinessManagement
     public class ReportController : ControllerBase
     {
         private readonly SchoolManagementContext _context;
-        public ReportController(SchoolManagementContext context)
+        private readonly ITrendAnalysisService _trendAnalysisService;
+        public ReportController(SchoolManagementContext context, ITrendAnalysisService trendAnalysisService)
         {
             _context = context;
+            _trendAnalysisService = trendAnalysisService;
         }
 
         [HttpGet("department/{subjectGroupId}/latest-semester-scores")]
@@ -236,7 +240,7 @@ namespace e_learning_vie.Controllers.BusinessManagement
             {
                 GradeName = g.GradeName,
                 StudentCount = g.StudentCount,
-                Percentage = $"{Math.Round((double)g.StudentCount / totalStudents * 100, 2)}%", 
+                Percentage = $"{Math.Round((double)g.StudentCount / totalStudents * 100, 2)}%",
                 YearName = latestAcademicYear.YearName
             }).ToList();
 
@@ -269,6 +273,33 @@ namespace e_learning_vie.Controllers.BusinessManagement
             };
 
             return Ok(result);
+        }
+        [HttpGet("enrollment-trend")]
+        public async Task<IActionResult> GetEnrollmentTrend(
+    [FromQuery] int? startYear = null,
+    [FromQuery] int? endYear = null,
+    [FromQuery] int? yearsBack = null)
+        {
+            try
+            {
+                var result = await _trendAnalysisService.GetEnrollmentTrendAsync(startYear, endYear, yearsBack);
+                return Ok(ApiResponse<object>.Success("Xu hướng sĩ số học sinh", result));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Error("Internal server error: " + ex.Message));
+            }
+        }
+
+        [HttpGet("academic-quality-trend")]
+        // [Authorize(Roles = "Principal")]
+        public async Task<IActionResult> GetAcademicQualityTrend(
+            [FromQuery] int? startYear = null,
+            [FromQuery] int? endYear = null,
+            [FromQuery] int? yearsBack = null)
+        {
+            var result = await _trendAnalysisService.GetAcademicQualityTrendAsync(startYear, endYear, yearsBack);
+            return Ok(ApiResponse<object>.Success("Xu hướng chất lượng học tập", result));
         }
     }
 }

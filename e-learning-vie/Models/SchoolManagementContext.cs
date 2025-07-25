@@ -40,7 +40,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
     public virtual DbSet<Grade> Grades { get; set; }
 
     public virtual DbSet<Exam> Exams { get; set; }
-    
+
     public virtual DbSet<Enrollment> Enrollments { get; set; }
 
     public virtual DbSet<ClassSession> ClassSessions { get; set; }
@@ -204,7 +204,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
             entity.Property(e => e.AcademicYearId).HasColumnName("AcademicYearID");
             entity.HasOne(d => d.AcademicYear).WithMany(p => p.Semesters)
-                .HasForeignKey(d => d.SemesterId)
+                .HasForeignKey(d => d.AcademicYearId)
                 .HasConstraintName("FK__Semester__AcademicYear");
 
         });
