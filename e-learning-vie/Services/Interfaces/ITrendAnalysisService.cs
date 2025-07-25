@@ -4,11 +4,11 @@ namespace e_learning_vie.Services.Interfaces
 {
     public interface ITrendAnalysisService
     {
-         Task<List<EnrollmentTrendDto>> GetEnrollmentTrendAsync(int yearsBack = 5);
-        Task<List<AcademicQualityTrendDto>> GetAcademicQualityTrendAsync(int yearsBack = 3);
-        Task<List<GradePerformanceTrendDto>> GetGradePerformanceTrendAsync(int gradeId, int yearsBack = 3);
-        Task<List<SubjectPerformanceTrendDto>> GetSubjectPerformanceTrendAsync(int subjectId, int yearsBack = 3);
-        Task<object> GetOverallTrendSummaryAsync();
-
+        Task<(int fromYear, int toYear)> GetYearRangeAsync(int? startYear, int? endYear, int? yearsBack);
+        Task<List<EnrollmentTrendDto>> GetEnrollmentTrendAsync(int? startYear = null, int? endYear = null, int? yearsBack = null);
+        Task<List<AcademicQualityTrendDto>> GetAcademicQualityTrendAsync(int? startYear = null, int? endYear = null, int? yearsBack = null);
+        Task<List<GradePerformanceTrendDto>> GetGradePerformanceTrendAsync(int gradeId, int? startYear = null, int? endYear = null, int? yearsBack = null);
+        Task<List<SubjectPerformanceTrendDto>> GetSubjectPerformanceTrendAsync(int subjectId, int? startYear = null, int? endYear = null, int? yearsBack = null);
+        Task<object> GetOverallTrendSummaryAsync(int? startYear = null, int? endYear = null, int? yearsBack = null);
     }
 }

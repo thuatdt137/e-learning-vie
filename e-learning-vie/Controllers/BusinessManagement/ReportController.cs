@@ -1,5 +1,6 @@
 ﻿using e_learning_vie.Commons;
 using e_learning_vie.Models;
+using e_learning_vie.Services.Implements;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -13,9 +14,11 @@ namespace e_learning_vie.Controllers.BusinessManagement
     public class ReportController : ControllerBase
     {
         private readonly SchoolManagementContext _context;
-        public ReportController(SchoolManagementContext context)
+        private readonly TrendAnalysisService _trendAnalysisService;
+        public ReportController(SchoolManagementContext context, TrendAnalysisService trendAnalysisService)
         {
             _context = context;
+            _trendAnalysisService = trendAnalysisService;
         }
 
         [HttpGet("teaching-effective/{semesterId}")]
@@ -117,7 +120,7 @@ namespace e_learning_vie.Controllers.BusinessManagement
                             .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
                             .Where(ss => ss.SubjectId == ta.SubjectId)
                             .Average(ss => (double?)ss.Score) ?? 0),
-                        
+
                         PassingRate = t.SelectMany(ta => ta.Session.Enrollments
                                 .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
                                 .Where(ss => ss.SubjectId == ta.SubjectId))
@@ -129,7 +132,7 @@ namespace e_learning_vie.Controllers.BusinessManagement
                                 .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
                                 .Where(ss => ss.SubjectId == ta.SubjectId))
                             .Count() : 1),
-                                           
+
                         PerformanceScore = CalculatePerformanceScore(
                             t.Average(ta => ta.Session.Enrollments
                                 .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
@@ -226,7 +229,8 @@ namespace e_learning_vie.Controllers.BusinessManagement
                 .Include(e => e.ClassSession.Class.Grade)
                 .Where(e => targetGrades.Contains(e.ClassSession.Class.Grade.GradeName))
                 .GroupBy(e => e.ClassSession.Class.Grade.GradeName)
-                .Select(g => new {
+                .Select(g => new
+                {
                     GradeName = g.Key,
                     StudentCount = g.Select(e => e.StudentId).Distinct().Count()
                 })
@@ -324,6 +328,37 @@ namespace e_learning_vie.Controllers.BusinessManagement
             }).ToList();
 
             return Ok(result);
+        }
+        [HttpGet("enrollment-trend")]
+        [Authorize(Roles = "Principal")]
+        public async Task<IActionResult> GetEnrollmentTrend(
+            [FromQuery] int? startYear = null,
+            [FromQuery] int? endYear = null,
+            [FromQuery] int? yearsBack = null)
+        {
+            var result = await _trendAnalysisService.GetEnrollmentTrendAsync(startYear, endYear, yearsBack);
+            return Ok(ApiResponse<object>.Success("Xu hướng sĩ số học sinh", result));
+        }
+
+        [HttpGet("academic-quality-trend")]
+        [Authorize(Roles = "Principal")]
+        public async Task<IActionResult> GetAcademicQualityTrend(
+            [FromQuery] int? startYear = null,
+            [FromQuery] int? endYear = null,
+            [FromQuery] int? yearsBack = null)
+        {
+            var result = await _trendAnalysisService.GetAcademicQualityTrendAsync(startYear, endYear, yearsBack);
+            return Ok(ApiResponse<object>.Success("Xu hướng chất lượng học tập", result));
+        }
+        [HttpGet("overall-summary")]
+         [Authorize(Roles = "Principal")]
+        public async Task<IActionResult> GetOverallTrendSummary(
+           [FromQuery] int? startYear = null,
+           [FromQuery] int? endYear = null,
+           [FromQuery] int? yearsBack = null)
+        {
+            var result = await _trendAnalysisService.GetOverallTrendSummaryAsync(startYear, endYear, yearsBack);
+            return Ok(ApiResponse<object>.Success("Tổng quan xu hướng", result));
         }
     }
 }
