@@ -29,6 +29,9 @@ public partial class Teacher
 
     public virtual ICollection<SubjectGroup> SubjectGroups { get; set; } = new List<SubjectGroup>();
 
+    public virtual ICollection<TeacherSubject> TeacherSubjects { get; set; } = new List<TeacherSubject>();
+
+
 
 
 

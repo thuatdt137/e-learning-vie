@@ -13,7 +13,9 @@ public partial class Schedule
 
     public int SlotId { get; set; }
 
-    public string? Room { get; set; }
+    public int? RoomId { get; set; }
+
+    public virtual Room Room { get; set; }
 
     public virtual Slot Slot { get; set; }
 

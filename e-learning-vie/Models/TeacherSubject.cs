@@ -2,7 +2,7 @@
 {
     public partial class TeacherSubject
     {
-        public int TeaccherSubjectId { get; set; }
+        public int TeacherSubjectId { get; set; }
         public int TeacherId { get; set; }
         public int SubjectId { get; set; }
 

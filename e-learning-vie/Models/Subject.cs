@@ -21,7 +21,7 @@ public partial class Subject
 
     public virtual ICollection<TeachingAssignment> TeachingAssignments { get; set; } = new List<TeachingAssignment>();
 
-
+    public virtual ICollection<TeacherSubject> TeacherSubjects { get; set; } = new List<TeacherSubject>();
 
     public virtual Grade Grade { get; set; }
     public virtual SubjectGroup SubjectGroup { get; set; }

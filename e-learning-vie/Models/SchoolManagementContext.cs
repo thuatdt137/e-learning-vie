@@ -55,7 +55,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
     public virtual DbSet<SubjectGroup> SubjectGroups { get; set; }
 
-
+    public virtual DbSet<StudentParent> StudentParents { get; set; }
 
 
 
@@ -96,6 +96,8 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
         modelBuilder.Entity<Exam>(entity =>
         {
             entity.HasKey(e => e.ExamId).HasName("PK__Exam__86JDNMENN78537");
+            entity.Property(e => e.ExamId).HasColumnName("ExamID");
+
 
             entity.Property(e => e.SemesterId).HasColumnName("SemesterID");
             entity.HasOne(d => d.Semester).WithMany(p => p.Exams)
@@ -106,6 +108,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
         modelBuilder.Entity<Grade>(entity =>
         {
             entity.HasKey(e => e.GradeId).HasName("PK__Grade__24JEMEJK3DGFEA");
+            entity.Property(e => e.GradeId).HasColumnName("GradeID");
 
             entity.Property(e => e.GradeName).HasMaxLength(50);
             entity.Property(e => e.GradeDescription).HasMaxLength(100);
@@ -115,6 +118,8 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
         modelBuilder.Entity<ClassSession>(entity =>
         {
             entity.HasKey(e => e.ClassSessionId).HasName("PK__ClassSession__LKDFD823023J3J3");
+            entity.Property(e => e.ClassSessionId).HasColumnName("ClassSessionID");
+
 
             entity.Property(e => e.TeacherId).HasColumnName("TeacherID");
             entity.HasOne(d => d.HomeroomTeacher).WithMany(p => p.ClassSessions)
@@ -136,6 +141,8 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
         modelBuilder.Entity<TeachingAssignment>(entity =>
         {
             entity.HasKey(e => e.TeachingAssignmentId).HasName("PK__TeachingAssignment__98374VB5Y743");
+            entity.Property(e => e.TeachingAssignmentId).HasColumnName("TeachingAssignmentID");
+
 
             entity.Property(e => e.TeacherId).HasColumnName("TeacherID");
             entity.HasOne(d => d.Teacher).WithMany(p => p.TeachingAssignments)
@@ -154,12 +161,29 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
         });
 
+        modelBuilder.Entity<TeacherSubject>(entity =>
+        {
+            entity.HasKey(e => e.TeacherSubjectId).HasName("PK__TeacherSubject");
+            entity.Property(e => e.TeacherSubjectId).HasColumnName("TeacherSubjectID");
+
+
+            entity.Property(e => e.TeacherId).HasColumnName("TeacherID");
+            entity.HasOne(d => d.Teacher).WithMany(p => p.TeacherSubjects)
+                .HasForeignKey(d => d.TeacherId)
+                .HasConstraintName("FK__TeacherSubject__Teacher");
+
+            entity.Property(e => e.SubjectId).HasColumnName("SubjectID");
+            entity.HasOne(d => d.Subject).WithMany(p => p.TeacherSubjects)
+                .HasForeignKey(d => d.SubjectId)
+                .HasConstraintName("FK__TeacherSubject__Subject");
+        });
+
 
         modelBuilder.Entity<ScoreType>(entity =>
         {
             entity.HasKey(e => e.ScoreId).HasName("PK__Scores__54F87A370A2E8566");
-
             entity.Property(e => e.ScoreId).HasColumnName("ScoreID");
+
             entity.Property(e => e.TypeName).HasMaxLength(50);
             entity.Property(e => e.Description).HasMaxLength(500);
 
@@ -168,8 +192,8 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
         modelBuilder.Entity<Semester>(entity =>
         {
             entity.HasKey(e => e.SemesterId).HasName("PK__Semester__49U49549O2U59O8");
-
             entity.Property(e => e.SemesterId).HasColumnName("SemesterID");
+
             entity.Property(e => e.SemesterName).HasMaxLength(50);
 
             entity.Property(e => e.AcademicYearId).HasColumnName("AcademicYearID");
@@ -253,6 +277,15 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
         });
 
+        modelBuilder.Entity<Room>(entity =>
+        {
+            entity.HasKey(e => e.RoomId).HasName("PK__Room__98YDS89F");
+
+            entity.Property(e => e.RoomId).HasColumnName("RoomID");
+
+        });
+
+
         modelBuilder.Entity<SubjectGroup>(entity =>
         {
             entity.HasKey(e => e.SubjectGroupId).HasName("PK__SubjectGroup__J908SFJ23J");
@@ -263,6 +296,23 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
             entity.HasOne(d => d.LeadTeacher).WithMany(p => p.SubjectGroups)
                 .HasForeignKey(d => d.LeadTeacherId)
                 .HasConstraintName("FK__SubjectGroup__Teacher");
+
+        });
+
+        modelBuilder.Entity<Schedule>(entity =>
+        {
+            entity.HasKey(e => e.ScheduleId).HasName("PK__Schedule__9AUSD8FD");
+            entity.Property(e => e.ScheduleId).HasColumnName("ScheduleID");
+
+            entity.Property(e => e.RoomId).HasColumnName("RoomID");
+            entity.HasOne(d => d.Room).WithMany(p => p.Schedules)
+                .HasForeignKey(d => d.RoomId)
+                .HasConstraintName("FK__Schedule_Room");
+
+            entity.Property(e => e.SlotId).HasColumnName("SlotID");
+            entity.HasOne(d => d.Slot).WithMany(p => p.Schedules)
+                .HasForeignKey(d => d.SlotId)
+                .HasConstraintName("FK__Schedule_Room");
 
         });
 
@@ -341,6 +391,26 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
                 .HasMaxLength(15)
                 .IsUnicode(false);
         });
+
+        modelBuilder.Entity<StudentParent>(entity =>
+        {
+            entity.HasKey(e => e.StudentParentId).HasName("PK__StudentParent__JDL8D");
+            entity.Property(e => e.StudentParentId).HasColumnName("StudentParentID");
+
+            entity.Property(e => e.StudentId).HasColumnName("StudentID");
+            entity.HasOne(d => d.Student).WithMany(p => p.StudentParents)
+                .HasForeignKey(d => d.StudentId)
+                .HasConstraintName("FK__StudentParent__Student");
+
+            entity.Property(e => e.ParentId).HasColumnName("ParentID");
+            entity.HasOne(d => d.Parent).WithMany(p => p.StudentParents)
+                .HasForeignKey(d => d.ParentId)
+                .HasConstraintName("FK__StudentParent__Parent");
+
+            entity.Property(e => e.RelationalName).HasMaxLength(100);
+
+        });
+
 
         modelBuilder.Entity<User>(entity =>
         {
