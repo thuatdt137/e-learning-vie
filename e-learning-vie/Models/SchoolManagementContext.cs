@@ -57,6 +57,9 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
     public virtual DbSet<StudentParent> StudentParents { get; set; }
 
+    public virtual DbSet<SubjectScore> SubjectScores { get; set; }
+
+
 
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -224,11 +227,6 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
                 .HasForeignKey(d => d.SubjectId)
                 .HasConstraintName("FK__StudentScore__Subject");
 
-            entity.Property(e => e.ScoreTypeId).HasColumnName("ScoreTypeID");
-            entity.HasOne(d => d.ScoreType).WithMany(p => p.StudentScores)
-                .HasForeignKey(d => d.ScoreTypeId)
-                .HasConstraintName("FK__StudentScore__ScoreType");
-
             entity.Property(e => e.ExamId).HasColumnName("ExamID");
             entity.HasOne(d => d.Exam).WithMany(p => p.StudentScores)
                 .HasForeignKey(d => d.ExamId)
@@ -300,6 +298,26 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
                 .HasForeignKey(d => d.LeadTeacherId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK__SubjectGroup__Teacher");
+
+        });
+
+        modelBuilder.Entity<SubjectScore>(entity =>
+        {
+            entity.HasKey(e => e.SubjectScoreId).HasName("PK__SubjectScore");
+
+            entity.Property(e => e.SubjectScoreId).HasColumnName("SubjectScoreID");
+
+            entity.Property(e => e.SubjectId).HasColumnName("SubjectID");
+            entity.HasOne(d => d.Subject).WithMany(p => p.SubjectScores)
+                .HasForeignKey(d => d.SubjectId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK__SubjectScore__Subject");
+
+            entity.Property(e => e.ScoreTypeId).HasColumnName("ScoreTypeID");
+            entity.HasOne(d => d.ScoreType).WithMany(p => p.SubjectScores)
+                .HasForeignKey(d => d.ScoreTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK__SubjectScore__ScoreType");
 
         });
 

@@ -165,6 +165,7 @@ namespace e_learning_vie.Controllers.BusinessManagement
             double normalizedStudentCount = Math.Min(totalStudents / 100.0, 1.0);
 
             return 0.4 * normalizedAverageScore + 0.4 * normalizedPassingRate + 0.1 * normalizedClassCount + 0.1 * normalizedStudentCount;
+        }
 
         // Endpoint 1: Lấy tổng số học sinh/giáo viên/lớp theo năm học
         // GET: api/Dashboard/stats-by-year/1
