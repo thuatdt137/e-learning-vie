@@ -8,5 +8,9 @@
         
         public virtual Subject Subject { get; set; }
         public virtual ScoreType ScoreType { get; set; }
+
+        public virtual ICollection<StudentScore> StudentScores { get; set; } = new List<StudentScore>();
+
+
     }
 }

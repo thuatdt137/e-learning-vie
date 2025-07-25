@@ -21,144 +21,144 @@ namespace e_learning_vie.Controllers.BusinessManagement
             _trendAnalysisService = trendAnalysisService;
         }
 
-        [HttpGet("teaching-effective/{semesterId}")]
-        //[Authorize(Roles = "HeaderDepartment")]
-        public async Task<IActionResult> GetTeachingEffectiveness(int semesterId)
-        {
-            var teachingAssignments = _context.TeachingAssignments
-                .Include(ta => ta.Teacher)
-                .Include(ta => ta.Subject).ThenInclude(s => s.SubjectGroup)
-                .Include(ta => ta.Session).ThenInclude(cs => cs.Class)
-                .Include(ta => ta.Session).ThenInclude(cs => cs.Enrollments).ThenInclude(e => e.StudentScores)
-                .Where(ta => ta.Session.SemesterId == semesterId)
-                .ToList();
+        //[HttpGet("teaching-effective/{semesterId}")]
+        ////[Authorize(Roles = "HeaderDepartment")]
+        //public async Task<IActionResult> GetTeachingEffectiveness(int semesterId)
+        //{
+        //    var teachingAssignments = _context.TeachingAssignments
+        //        .Include(ta => ta.Teacher)
+        //        .Include(ta => ta.Subject).ThenInclude(s => s.SubjectGroup)
+        //        .Include(ta => ta.Session).ThenInclude(cs => cs.Class)
+        //        .Include(ta => ta.Session).ThenInclude(cs => cs.Enrollments).ThenInclude(e => e.StudentScores)
+        //        .Where(ta => ta.Session.SemesterId == semesterId)
+        //        .ToList();
 
-            if (!teachingAssignments.Any())
-            {
-                return Ok(ApiResponse<object>.Success("Không có dữ liệu cho semester này", new List<object>()));
-            }
+        //    if (!teachingAssignments.Any())
+        //    {
+        //        return Ok(ApiResponse<object>.Success("Không có dữ liệu cho semester này", new List<object>()));
+        //    }
 
-            var groupedData = teachingAssignments
-                .GroupBy(ta => new
-                {
-                    ta.Teacher.TeacherId,
-                    TeacherName = $"{ta.Teacher.FirstName} {ta.Teacher.LastName}",
-                    ta.Subject.SubjectGroup.SubjectGroupName
-                });
+        //    var groupedData = teachingAssignments
+        //        .GroupBy(ta => new
+        //        {
+        //            ta.Teacher.TeacherId,
+        //            TeacherName = $"{ta.Teacher.FirstName} {ta.Teacher.LastName}",
+        //            ta.Subject.SubjectGroup.SubjectGroupName
+        //        });
 
-            var effectiveness = groupedData
-                .Select(g => new
-                {
-                    TeacherId = g.Key.TeacherId,
-                    TeacherName = g.Key.TeacherName,
-                    SubjectGroup = g.Key.SubjectGroupName,
-                    ClassCount = g.Count(),
-                    TotalStudents = g.Sum(ta => ta.Session.Enrollments.Count),
-                    AverageScore = g.Average(ta => ta.Session.Enrollments
-                        .SelectMany(e => e.StudentScores)
-                        .Where(ss => ss.SubjectId == ta.SubjectId)
-                        .Average(ss => (double?)ss.Score) ?? 0)
-                })
-                .ToList();
+        //    var effectiveness = groupedData
+        //        .Select(g => new
+        //        {
+        //            TeacherId = g.Key.TeacherId,
+        //            TeacherName = g.Key.TeacherName,
+        //            SubjectGroup = g.Key.SubjectGroupName,
+        //            ClassCount = g.Count(),
+        //            TotalStudents = g.Sum(ta => ta.Session.Enrollments.Count),
+        //            AverageScore = g.Average(ta => ta.Session.Enrollments
+        //                .SelectMany(e => e.StudentScores)
+        //                .Where(ss => ss.SubjectId == ta.SubjectId)
+        //                .Average(ss => (double?)ss.Score) ?? 0)
+        //        })
+        //        .ToList();
 
-            return Ok(ApiResponse<object>.Success("Báo cáo hiệu quả giảng dạy", effectiveness));
-        }
+        //    return Ok(ApiResponse<object>.Success("Báo cáo hiệu quả giảng dạy", effectiveness));
+        //}
 
-        [HttpGet("teaching-performance/{semesterId}")]
-        public async Task<IActionResult> GetTeachingPerformance(int semesterId, [FromQuery] int? subjectGroupId = null)
-        {
-            var query = _context.TeachingAssignments
-                .Include(ta => ta.Teacher)
-                .Include(ta => ta.Subject).ThenInclude(s => s.SubjectGroup)
-                .Include(ta => ta.Session).ThenInclude(cs => cs.Class)
-                .Include(ta => ta.Session).ThenInclude(cs => cs.Enrollments).ThenInclude(e => e.StudentScores)
-                .Where(ta => ta.Session.SemesterId == semesterId);
+        //[HttpGet("teaching-performance/{semesterId}")]
+        //public async Task<IActionResult> GetTeachingPerformance(int semesterId, [FromQuery] int? subjectGroupId = null)
+        //{
+        //    var query = _context.TeachingAssignments
+        //        .Include(ta => ta.Teacher)
+        //        .Include(ta => ta.Subject).ThenInclude(s => s.SubjectGroup)
+        //        .Include(ta => ta.Session).ThenInclude(cs => cs.Class)
+        //        .Include(ta => ta.Session).ThenInclude(cs => cs.Enrollments).ThenInclude(e => e.StudentScores)
+        //        .Where(ta => ta.Session.SemesterId == semesterId);
 
-            if (subjectGroupId.HasValue)
-            {
-                query = query.Where(ta => ta.Subject.SubjectGroupId == subjectGroupId.Value);
-            }
+        //    if (subjectGroupId.HasValue)
+        //    {
+        //        query = query.Where(ta => ta.Subject.SubjectGroupId == subjectGroupId.Value);
+        //    }
 
-            var teachingAssignments = await query.ToListAsync();
+        //    var teachingAssignments = await query.ToListAsync();
 
-            if (!teachingAssignments.Any())
-            {
-                return Ok(ApiResponse<object>.Success("Không có dữ liệu cho semester hoặc tổ bộ môn này"));
-            }
+        //    if (!teachingAssignments.Any())
+        //    {
+        //        return Ok(ApiResponse<object>.Success("Không có dữ liệu cho semester hoặc tổ bộ môn này"));
+        //    }
 
-            var performanceBySubjectGroup = teachingAssignments
-                .GroupBy(ta => new
-                {
-                    SubjectGroupId = ta.Subject.SubjectGroup != null ? ta.Subject.SubjectGroup.SubjectGroupId : 0,
-                    SubjectGroupName = ta.Subject.SubjectGroup != null ? ta.Subject.SubjectGroup.SubjectGroupName : "Không có nhóm môn học"
-                })
-                .Select(g => new
-                {
-                    SubjectGroupId = g.Key.SubjectGroupId,
-                    SubjectGroupName = g.Key.SubjectGroupName,
+        //    var performanceBySubjectGroup = teachingAssignments
+        //        .GroupBy(ta => new
+        //        {
+        //            SubjectGroupId = ta.Subject.SubjectGroup != null ? ta.Subject.SubjectGroup.SubjectGroupId : 0,
+        //            SubjectGroupName = ta.Subject.SubjectGroup != null ? ta.Subject.SubjectGroup.SubjectGroupName : "Không có nhóm môn học"
+        //        })
+        //        .Select(g => new
+        //        {
+        //            SubjectGroupId = g.Key.SubjectGroupId,
+        //            SubjectGroupName = g.Key.SubjectGroupName,
 
-                    AverageScore = g.Average(ta => ta.Session.Enrollments
-                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-                        .Where(ss => ss.SubjectId == ta.SubjectId)
-                        .Average(ss => (double?)ss.Score) ?? 0),
+        //            AverageScore = g.Average(ta => ta.Session.Enrollments
+        //                .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
+        //                .Where(ss => ss.SubjectId == ta.SubjectId)
+        //                .Average(ss => (double?)ss.Score) ?? 0),
 
 
-                    Teachers = g.GroupBy(ta => new
-                    {
-                        ta.Teacher.TeacherId,
-                        TeacherName = $"{ta.Teacher.FirstName} {ta.Teacher.LastName}"
-                    })
-                    .Select(t => new
-                    {
-                        TeacherId = t.Key.TeacherId,
-                        TeacherName = t.Key.TeacherName,
+        //            Teachers = g.GroupBy(ta => new
+        //            {
+        //                ta.Teacher.TeacherId,
+        //                TeacherName = $"{ta.Teacher.FirstName} {ta.Teacher.LastName}"
+        //            })
+        //            .Select(t => new
+        //            {
+        //                TeacherId = t.Key.TeacherId,
+        //                TeacherName = t.Key.TeacherName,
 
-                        ClassCount = t.Count(),
-                        TotalStudents = t.Sum(ta => ta.Session.Enrollments?.Count ?? 0),
+        //                ClassCount = t.Count(),
+        //                TotalStudents = t.Sum(ta => ta.Session.Enrollments?.Count ?? 0),
 
-                        AverageScore = t.Average(ta => ta.Session.Enrollments
-                            .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-                            .Where(ss => ss.SubjectId == ta.SubjectId)
-                            .Average(ss => (double?)ss.Score) ?? 0),
+        //                AverageScore = t.Average(ta => ta.Session.Enrollments
+        //                    .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
+        //                    .Where(ss => ss.SubjectId == ta.SubjectId)
+        //                    .Average(ss => (double?)ss.Score) ?? 0),
+                        
+        //                PassingRate = t.SelectMany(ta => ta.Session.Enrollments
+        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
+        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
+        //                    .Count(ss => ss.Score >= 5) * 100.0 /
+        //                    (t.SelectMany(ta => ta.Session.Enrollments
+        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
+        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
+        //                    .Count() > 0 ? t.SelectMany(ta => ta.Session.Enrollments
+        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
+        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
+        //                    .Count() : 1),
+                                           
+        //                PerformanceScore = CalculatePerformanceScore(
+        //                    t.Average(ta => ta.Session.Enrollments
+        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
+        //                        .Where(ss => ss.SubjectId == ta.SubjectId)
+        //                        .Average(ss => (double?)ss.Score) ?? 0),
+        //                    t.SelectMany(ta => ta.Session.Enrollments
+        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
+        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
+        //                    .Count(ss => ss.Score >= 5) * 100.0 /
+        //                    (t.SelectMany(ta => ta.Session.Enrollments
+        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
+        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
+        //                    .Count() > 0 ? t.SelectMany(ta => ta.Session.Enrollments
+        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
+        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
+        //                    .Count() : 1),
+        //                    t.Count(),
+        //                    t.Sum(ta => ta.Session.Enrollments?.Count ?? 0))
+        //            })
+        //            .ToList()
+        //        })
+        //        .OrderBy(g => g.SubjectGroupName)
+        //        .ToList();
 
-                        PassingRate = t.SelectMany(ta => ta.Session.Enrollments
-                                .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-                                .Where(ss => ss.SubjectId == ta.SubjectId))
-                            .Count(ss => ss.Score >= 5) * 100.0 /
-                            (t.SelectMany(ta => ta.Session.Enrollments
-                                .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-                                .Where(ss => ss.SubjectId == ta.SubjectId))
-                            .Count() > 0 ? t.SelectMany(ta => ta.Session.Enrollments
-                                .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-                                .Where(ss => ss.SubjectId == ta.SubjectId))
-                            .Count() : 1),
-
-                        PerformanceScore = CalculatePerformanceScore(
-                            t.Average(ta => ta.Session.Enrollments
-                                .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-                                .Where(ss => ss.SubjectId == ta.SubjectId)
-                                .Average(ss => (double?)ss.Score) ?? 0),
-                            t.SelectMany(ta => ta.Session.Enrollments
-                                .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-                                .Where(ss => ss.SubjectId == ta.SubjectId))
-                            .Count(ss => ss.Score >= 5) * 100.0 /
-                            (t.SelectMany(ta => ta.Session.Enrollments
-                                .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-                                .Where(ss => ss.SubjectId == ta.SubjectId))
-                            .Count() > 0 ? t.SelectMany(ta => ta.Session.Enrollments
-                                .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-                                .Where(ss => ss.SubjectId == ta.SubjectId))
-                            .Count() : 1),
-                            t.Count(),
-                            t.Sum(ta => ta.Session.Enrollments?.Count ?? 0))
-                    })
-                    .ToList()
-                })
-                .OrderBy(g => g.SubjectGroupName)
-                .ToList();
-
-            return Ok(ApiResponse<object>.Success("Báo cáo hiệu quả giảng dạy theo tổ bộ môn", performanceBySubjectGroup));
-        }
+        //    return Ok(ApiResponse<object>.Success("Báo cáo hiệu quả giảng dạy theo tổ bộ môn", performanceBySubjectGroup));
+        //}
 
         private double CalculatePerformanceScore(double averageScore, double passingRate, int classCount, int totalStudents)
         {
@@ -282,53 +282,53 @@ namespace e_learning_vie.Controllers.BusinessManagement
 
         // Endpoint 4: Tỷ lệ giáo viên/học sinh theo tổ bộ môn
         // GET: api/Dashboard/teacher-student-ratio
-        [HttpGet("teacher-student-ratio")]
-        public async Task<ActionResult<IEnumerable<TeacherStudentRatioDto>>> GetTeacherStudentRatioBySubjectGroup()
-        {
-            // Viết lại toàn bộ logic vào một câu truy vấn duy nhất
-            var ratioData = await _context.SubjectGroups
-                .Select(group => new
-                {
-                    // Chọn ra các trường cần thiết
-                    SubjectGroupName = group.SubjectGroupName,
+        //[HttpGet("teacher-student-ratio")]
+        //public async Task<ActionResult<IEnumerable<TeacherStudentRatioDto>>> GetTeacherStudentRatioBySubjectGroup()
+        //{
+        //    // Viết lại toàn bộ logic vào một câu truy vấn duy nhất
+        //    var ratioData = await _context.SubjectGroups
+        //        .Select(group => new
+        //        {
+        //            // Chọn ra các trường cần thiết
+        //            SubjectGroupName = group.SubjectGroupName,
 
-                    // Đếm số giáo viên duy nhất trong tổ thông qua các môn học
-                    TeacherCount = group.Subjects
-                                        .SelectMany(s => s.TeacherSubjects) // Lấy tất cả các bản ghi TeacherSubject từ các môn học
-                                        .Select(ts => ts.TeacherId) // Chọn ra TeacherId
-                                        .Distinct()
-                                        .Count(),
+        //            // Đếm số giáo viên duy nhất trong tổ thông qua các môn học
+        //            TeacherCount = group.Subjects
+        //                                .SelectMany(s => s.TeacherSubjects) // Lấy tất cả các bản ghi TeacherSubject từ các môn học
+        //                                .Select(ts => ts.TeacherId) // Chọn ra TeacherId
+        //                                .Distinct()
+        //                                .Count(),
 
-                    // Đếm số học sinh duy nhất học các môn trong tổ
-                    StudentCount = _context.StudentScores
-                                         .Where(ss => group.Subjects.Select(s => s.SubjectId).Contains(ss.SubjectId)) // Lọc điểm của các môn trong tổ
-                                         .Select(ss => ss.Enrollment.StudentId) // Chọn ra StudentId
-                                         .Distinct()
-                                         .Count()
-                })
-                .ToListAsync(); // Thực thi truy vấn và lấy kết quả từ database
+        //            // Đếm số học sinh duy nhất học các môn trong tổ
+        //            StudentCount = _context.StudentScores
+        //                                 .Where(ss => group.Subjects.Select(s => s.SubjectId).Contains(ss.SubjectId)) // Lọc điểm của các môn trong tổ
+        //                                 .Select(ss => ss.Enrollment.StudentId) // Chọn ra StudentId
+        //                                 .Distinct()
+        //                                 .Count()
+        //        })
+        //        .ToListAsync(); // Thực thi truy vấn và lấy kết quả từ database
 
-            // Sau khi đã có dữ liệu, thực hiện tính toán tỷ lệ trong bộ nhớ
-            var result = ratioData.Select(data =>
-            {
-                string ratio = "N/A";
-                if (data.TeacherCount > 0 && data.StudentCount > 0)
-                {
-                    double studentsPerTeacher = Math.Round((double)data.StudentCount / data.TeacherCount, 1);
-                    ratio = $"1 : {studentsPerTeacher}";
-                }
+        //    // Sau khi đã có dữ liệu, thực hiện tính toán tỷ lệ trong bộ nhớ
+        //    var result = ratioData.Select(data =>
+        //    {
+        //        string ratio = "N/A";
+        //        if (data.TeacherCount > 0 && data.StudentCount > 0)
+        //        {
+        //            double studentsPerTeacher = Math.Round((double)data.StudentCount / data.TeacherCount, 1);
+        //            ratio = $"1 : {studentsPerTeacher}";
+        //        }
 
-                return new TeacherStudentRatioDto
-                {
-                    SubjectGroupName = data.SubjectGroupName,
-                    TeacherCount = data.TeacherCount,
-                    StudentCount = data.StudentCount,
-                    Ratio = ratio
-                };
-            }).ToList();
+        //        return new TeacherStudentRatioDto
+        //        {
+        //            SubjectGroupName = data.SubjectGroupName,
+        //            TeacherCount = data.TeacherCount,
+        //            StudentCount = data.StudentCount,
+        //            Ratio = ratio
+        //        };
+        //    }).ToList();
 
-            return Ok(result);
-        }
+        //    return Ok(result);
+        //}
         [HttpGet("enrollment-trend")]
         [Authorize(Roles = "Principal")]
         public async Task<IActionResult> GetEnrollmentTrend(
