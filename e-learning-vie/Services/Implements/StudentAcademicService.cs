@@ -148,9 +148,9 @@ namespace e_learning_vie.Services.Implements
 
 
 
-        //public dynamic GetClassAcademicLevel(int classId, int semesterId)
-        //{
-            
-        //}
+        public dynamic GetClassAcademicLevel(int classId, int semesterId)
+        {
+            throw new NotImplementedException("This method is not implemented yet.");
+        }
     }
 }
