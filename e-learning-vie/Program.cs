@@ -119,7 +119,7 @@ app.UseExceptionHandler();
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<int>>>();
-    var roles = new[] { "Student", "Teacher", "TrainingDepartment", "VicePrincipal", "MinistryOfEducation" };
+    var roles = new[] { "Student", "Teacher", "HomeroomTeacher", "Parent", "HeaderDepartment", "TrainingDepartment", "VicePrincipal", "Principal" };
     foreach (var role in roles)
     {
         if (!await roleManager.RoleExistsAsync(role))

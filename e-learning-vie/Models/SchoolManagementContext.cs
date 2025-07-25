@@ -124,6 +124,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
             entity.Property(e => e.TeacherId).HasColumnName("TeacherID");
             entity.HasOne(d => d.HomeroomTeacher).WithMany(p => p.ClassSessions)
                 .HasForeignKey(d => d.TeacherId)
+                .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK__ClassSession__Teacher");
 
             entity.Property(e => e.ClassId).HasColumnName("ClassID");
@@ -147,6 +148,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
             entity.Property(e => e.TeacherId).HasColumnName("TeacherID");
             entity.HasOne(d => d.Teacher).WithMany(p => p.TeachingAssignments)
                 .HasForeignKey(d => d.TeacherId)
+                .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK__TeachingAssignment__Teacher");
 
             entity.Property(e => e.SubjectId).HasColumnName("SubjectID");
@@ -170,6 +172,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
             entity.Property(e => e.TeacherId).HasColumnName("TeacherID");
             entity.HasOne(d => d.Teacher).WithMany(p => p.TeacherSubjects)
                 .HasForeignKey(d => d.TeacherId)
+                .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK__TeacherSubject__Teacher");
 
             entity.Property(e => e.SubjectId).HasColumnName("SubjectID");
@@ -295,6 +298,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
             entity.Property(e => e.LeadTeacherId).HasColumnName("LeadTeacherID");
             entity.HasOne(d => d.LeadTeacher).WithMany(p => p.SubjectGroups)
                 .HasForeignKey(d => d.LeadTeacherId)
+                .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK__SubjectGroup__Teacher");
 
         });
@@ -312,7 +316,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
             entity.Property(e => e.SlotId).HasColumnName("SlotID");
             entity.HasOne(d => d.Slot).WithMany(p => p.Schedules)
                 .HasForeignKey(d => d.SlotId)
-                .HasConstraintName("FK__Schedule_Room");
+                .HasConstraintName("FK__Schedule_Slot");
 
         });
 
