@@ -13,5 +13,6 @@ public partial class ScoreType
 
     public string? Description { get; set; }
 
-    public ICollection<StudentScore> StudentScores { get; set;} = new List<StudentScore>();
+    public virtual ICollection<SubjectScore> SubjectScores { get; set; } = new List<SubjectScore>();
+
 }

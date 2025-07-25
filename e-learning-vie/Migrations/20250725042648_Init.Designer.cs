@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using e_learning_vie.Models;
 
@@ -11,9 +12,11 @@ using e_learning_vie.Models;
 namespace e_learning_vie.Migrations
 {
     [DbContext(typeof(SchoolManagementContext))]
-    partial class SchoolManagementContextModelSnapshot : ModelSnapshot
+    [Migration("20250725042648_Init")]
+    partial class Init
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -694,6 +697,10 @@ namespace e_learning_vie.Migrations
                     b.Property<double?>("Score")
                         .HasColumnType("float");
 
+                    b.Property<int>("ScoreTypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("ScoreTypeID");
+
                     b.Property<int>("SubjectId")
                         .HasColumnType("int")
                         .HasColumnName("SubjectID");
@@ -704,6 +711,8 @@ namespace e_learning_vie.Migrations
                     b.HasIndex("EnrollmentId");
 
                     b.HasIndex("ExamId");
+
+                    b.HasIndex("ScoreTypeId");
 
                     b.HasIndex("SubjectId");
 
@@ -771,33 +780,6 @@ namespace e_learning_vie.Migrations
                     b.HasIndex("LeadTeacherId");
 
                     b.ToTable("SubjectGroups");
-                });
-
-            modelBuilder.Entity("e_learning_vie.Models.SubjectScore", b =>
-                {
-                    b.Property<int>("SubjectScoreId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("SubjectScoreID");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SubjectScoreId"));
-
-                    b.Property<int>("ScoreTypeId")
-                        .HasColumnType("int")
-                        .HasColumnName("ScoreTypeID");
-
-                    b.Property<int>("SubjectId")
-                        .HasColumnType("int")
-                        .HasColumnName("SubjectID");
-
-                    b.HasKey("SubjectScoreId")
-                        .HasName("PK__SubjectScore");
-
-                    b.HasIndex("ScoreTypeId");
-
-                    b.HasIndex("SubjectId");
-
-                    b.ToTable("SubjectScores");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Teacher", b =>
@@ -1233,6 +1215,13 @@ namespace e_learning_vie.Migrations
                         .HasForeignKey("ExamId")
                         .HasConstraintName("FK__StudentScore__Exam");
 
+                    b.HasOne("e_learning_vie.Models.ScoreType", "ScoreType")
+                        .WithMany("StudentScores")
+                        .HasForeignKey("ScoreTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK__StudentScore__ScoreType");
+
                     b.HasOne("e_learning_vie.Models.Subject", "Subject")
                         .WithMany("StudentScores")
                         .HasForeignKey("SubjectId")
@@ -1243,6 +1232,8 @@ namespace e_learning_vie.Migrations
                     b.Navigation("Enrollment");
 
                     b.Navigation("Exam");
+
+                    b.Navigation("ScoreType");
 
                     b.Navigation("Subject");
                 });
@@ -1278,27 +1269,6 @@ namespace e_learning_vie.Migrations
                         .HasConstraintName("FK__SubjectGroup__Teacher");
 
                     b.Navigation("LeadTeacher");
-                });
-
-            modelBuilder.Entity("e_learning_vie.Models.SubjectScore", b =>
-                {
-                    b.HasOne("e_learning_vie.Models.ScoreType", "ScoreType")
-                        .WithMany("SubjectScores")
-                        .HasForeignKey("ScoreTypeId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
-                        .HasConstraintName("FK__SubjectScore__ScoreType");
-
-                    b.HasOne("e_learning_vie.Models.Subject", "Subject")
-                        .WithMany("SubjectScores")
-                        .HasForeignKey("SubjectId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
-                        .HasConstraintName("FK__SubjectScore__Subject");
-
-                    b.Navigation("ScoreType");
-
-                    b.Navigation("Subject");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.TeacherSubject", b =>
@@ -1430,7 +1400,7 @@ namespace e_learning_vie.Migrations
 
             modelBuilder.Entity("e_learning_vie.Models.ScoreType", b =>
                 {
-                    b.Navigation("SubjectScores");
+                    b.Navigation("StudentScores");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Semester", b =>
@@ -1459,8 +1429,6 @@ namespace e_learning_vie.Migrations
             modelBuilder.Entity("e_learning_vie.Models.Subject", b =>
                 {
                     b.Navigation("StudentScores");
-
-                    b.Navigation("SubjectScores");
 
                     b.Navigation("TeacherSubjects");
 

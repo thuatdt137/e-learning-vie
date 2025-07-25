@@ -481,22 +481,22 @@ namespace e_learning_vie.Migrations
                     IsMainSubject = table.Column<bool>(type: "bit", nullable: false),
                     SubjectPeriod = table.Column<int>(type: "int", nullable: false),
                     GradeID = table.Column<int>(type: "int", nullable: false),
-                    SubjectGroupId = table.Column<int>(type: "int", nullable: false)
+                    SubjectGroupID = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK__Subjects__AC1BA38831BD67C9", x => x.SubjectID);
                     table.ForeignKey(
-                        name: "FK_Subjects_SubjectGroups_SubjectGroupId",
-                        column: x => x.SubjectGroupId,
-                        principalTable: "SubjectGroups",
-                        principalColumn: "SubjectGroupID",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
                         name: "FK__Subject__Grade",
                         column: x => x.GradeID,
                         principalTable: "Grades",
                         principalColumn: "GradeID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK__Subject__SubGroup",
+                        column: x => x.SubjectGroupID,
+                        principalTable: "SubjectGroups",
+                        principalColumn: "SubjectGroupID",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -865,9 +865,9 @@ namespace e_learning_vie.Migrations
                 column: "GradeID");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Subjects_SubjectGroupId",
+                name: "IX_Subjects_SubjectGroupID",
                 table: "Subjects",
-                column: "SubjectGroupId");
+                column: "SubjectGroupID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TeacherSubject_SubjectID",

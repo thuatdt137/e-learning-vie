@@ -1,4 +1,5 @@
-﻿using e_learning_vie.Middlewares;
+﻿using e_learning_vie.DTOs.AcademicLevel;
+using e_learning_vie.Middlewares;
 using e_learning_vie.Models;
 using e_learning_vie.Services.Implements;
 using e_learning_vie.Services.Interfaces;
@@ -23,6 +24,7 @@ builder.Services.AddDbContext<SchoolManagementContext>(options =>
 // dang ky service o day
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
+//builder.Services.AddScoped<IStudentAcademicService, StudentAcademicService>();
 
 
 
@@ -45,7 +47,9 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 builder.Services.AddHttpContextAccessor();
 
-
+//get rules from appsettings.json
+builder.Services.Configure<AcademicLevelRulesConfig>(
+    builder.Configuration.GetSection("AcademicLevelRules"));
 
 // logging
 builder.Services.AddLogging(logging =>
@@ -89,7 +93,7 @@ builder.Services.AddAuthentication(options =>
         {
             // Nếu token không có trong header thì lấy từ cookie
             var accessToken = context.Request.Cookies["accessToken"];
-            if (!string.IsNullOrEmpty(accessToken))
+            if(!string.IsNullOrEmpty(accessToken))
             {
                 context.Token = accessToken;
             }
@@ -116,13 +120,13 @@ app.UseExceptionHandler();
 
 
 // Initialize roles
-using (var scope = app.Services.CreateScope())
+using(var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<int>>>();
     var roles = new[] { "Student", "Teacher", "HomeroomTeacher", "Parent", "HeaderDepartment", "TrainingDepartment", "VicePrincipal", "Principal" };
-    foreach (var role in roles)
+    foreach(var role in roles)
     {
-        if (!await roleManager.RoleExistsAsync(role))
+        if(!await roleManager.RoleExistsAsync(role))
         {
             await roleManager.CreateAsync(new IdentityRole<int> { Name = role });
         }
@@ -130,7 +134,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+if(app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();

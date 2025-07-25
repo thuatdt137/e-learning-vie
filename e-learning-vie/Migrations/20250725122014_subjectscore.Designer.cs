@@ -12,8 +12,8 @@ using e_learning_vie.Models;
 namespace e_learning_vie.Migrations
 {
     [DbContext(typeof(SchoolManagementContext))]
-    [Migration("20250725025804_Init")]
-    partial class Init
+    [Migration("20250725122014_subjectscore")]
+    partial class subjectscore
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -697,10 +697,6 @@ namespace e_learning_vie.Migrations
                     b.Property<double?>("Score")
                         .HasColumnType("float");
 
-                    b.Property<int>("ScoreTypeId")
-                        .HasColumnType("int")
-                        .HasColumnName("ScoreTypeID");
-
                     b.Property<int>("SubjectId")
                         .HasColumnType("int")
                         .HasColumnName("SubjectID");
@@ -711,8 +707,6 @@ namespace e_learning_vie.Migrations
                     b.HasIndex("EnrollmentId");
 
                     b.HasIndex("ExamId");
-
-                    b.HasIndex("ScoreTypeId");
 
                     b.HasIndex("SubjectId");
 
@@ -736,7 +730,8 @@ namespace e_learning_vie.Migrations
                         .HasColumnType("bit");
 
                     b.Property<int>("SubjectGroupId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("SubjectGroupID");
 
                     b.Property<string>("SubjectName")
                         .IsRequired()
@@ -779,6 +774,33 @@ namespace e_learning_vie.Migrations
                     b.HasIndex("LeadTeacherId");
 
                     b.ToTable("SubjectGroups");
+                });
+
+            modelBuilder.Entity("e_learning_vie.Models.SubjectScore", b =>
+                {
+                    b.Property<int>("SubjectScoreId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("SubjectScoreID");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SubjectScoreId"));
+
+                    b.Property<int>("ScoreTypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("ScoreTypeID");
+
+                    b.Property<int>("SubjectId")
+                        .HasColumnType("int")
+                        .HasColumnName("SubjectID");
+
+                    b.HasKey("SubjectScoreId")
+                        .HasName("PK__SubjectScore");
+
+                    b.HasIndex("ScoreTypeId");
+
+                    b.HasIndex("SubjectId");
+
+                    b.ToTable("SubjectScores");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Teacher", b =>
@@ -1214,13 +1236,6 @@ namespace e_learning_vie.Migrations
                         .HasForeignKey("ExamId")
                         .HasConstraintName("FK__StudentScore__Exam");
 
-                    b.HasOne("e_learning_vie.Models.ScoreType", "ScoreType")
-                        .WithMany("StudentScores")
-                        .HasForeignKey("ScoreTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK__StudentScore__ScoreType");
-
                     b.HasOne("e_learning_vie.Models.Subject", "Subject")
                         .WithMany("StudentScores")
                         .HasForeignKey("SubjectId")
@@ -1231,8 +1246,6 @@ namespace e_learning_vie.Migrations
                     b.Navigation("Enrollment");
 
                     b.Navigation("Exam");
-
-                    b.Navigation("ScoreType");
 
                     b.Navigation("Subject");
                 });
@@ -1247,10 +1260,11 @@ namespace e_learning_vie.Migrations
                         .HasConstraintName("FK__Subject__Grade");
 
                     b.HasOne("e_learning_vie.Models.SubjectGroup", "SubjectGroup")
-                        .WithMany()
+                        .WithMany("Subjects")
                         .HasForeignKey("SubjectGroupId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK__Subject__SubGroup");
 
                     b.Navigation("Grade");
 
@@ -1267,6 +1281,27 @@ namespace e_learning_vie.Migrations
                         .HasConstraintName("FK__SubjectGroup__Teacher");
 
                     b.Navigation("LeadTeacher");
+                });
+
+            modelBuilder.Entity("e_learning_vie.Models.SubjectScore", b =>
+                {
+                    b.HasOne("e_learning_vie.Models.ScoreType", "ScoreType")
+                        .WithMany("SubjectScores")
+                        .HasForeignKey("ScoreTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK__SubjectScore__ScoreType");
+
+                    b.HasOne("e_learning_vie.Models.Subject", "Subject")
+                        .WithMany("SubjectScores")
+                        .HasForeignKey("SubjectId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK__SubjectScore__Subject");
+
+                    b.Navigation("ScoreType");
+
+                    b.Navigation("Subject");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.TeacherSubject", b =>
@@ -1398,7 +1433,7 @@ namespace e_learning_vie.Migrations
 
             modelBuilder.Entity("e_learning_vie.Models.ScoreType", b =>
                 {
-                    b.Navigation("StudentScores");
+                    b.Navigation("SubjectScores");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Semester", b =>
@@ -1428,9 +1463,16 @@ namespace e_learning_vie.Migrations
                 {
                     b.Navigation("StudentScores");
 
+                    b.Navigation("SubjectScores");
+
                     b.Navigation("TeacherSubjects");
 
                     b.Navigation("TeachingAssignments");
+                });
+
+            modelBuilder.Entity("e_learning_vie.Models.SubjectGroup", b =>
+                {
+                    b.Navigation("Subjects");
                 });
 
             modelBuilder.Entity("e_learning_vie.Models.Teacher", b =>
