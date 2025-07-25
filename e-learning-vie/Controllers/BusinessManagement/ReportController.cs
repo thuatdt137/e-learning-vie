@@ -276,54 +276,64 @@ namespace e_learning_vie.Controllers.BusinessManagement
             return Ok(result);
         }
 
-        // Endpoint 4: Tỷ lệ giáo viên/học sinh theo tổ bộ môn
-        // GET: api/Dashboard/teacher-student-ratio
-        //[HttpGet("teacher-student-ratio")]
-        //public async Task<ActionResult<IEnumerable<TeacherStudentRatioDto>>> GetTeacherStudentRatioBySubjectGroup()
-        //{
-        //    // Viết lại toàn bộ logic vào một câu truy vấn duy nhất
-        //    var ratioData = await _context.SubjectGroups
-        //        .Select(group => new
-        //        {
-        //            // Chọn ra các trường cần thiết
-        //            SubjectGroupName = group.SubjectGroupName,
+        //Endpoint 4: Tỷ lệ giáo viên/học sinh theo tổ bộ môn
+        //GET: api/Dashboard/teacher-student-ratio
+        [HttpGet("teacher-student-ratio")]
+        public async Task<ActionResult<IEnumerable<TeacherStudentRatioDto>>> GetTeacherStudentRatioBySubjectGroup()
+        {
+            var ratioData = await _context.SubjectGroups
+                .Select(group => new
+                {
+                    SubjectGroupName = group.SubjectGroupName,
 
-        //            // Đếm số giáo viên duy nhất trong tổ thông qua các môn học
-        //            TeacherCount = group.Subjects
-        //                                .SelectMany(s => s.TeacherSubjects) // Lấy tất cả các bản ghi TeacherSubject từ các môn học
-        //                                .Select(ts => ts.TeacherId) // Chọn ra TeacherId
-        //                                .Distinct()
-        //                                .Count(),
+                    TeacherCount = group.Subjects
+                                        .SelectMany(s => s.TeacherSubjects)
+                                        .Select(ts => ts.TeacherId)
+                                        .Distinct()
+                                        .Count(),
 
-        //            // Đếm số học sinh duy nhất học các môn trong tổ
-        //            StudentCount = _context.StudentScores
-        //                                 .Where(ss => group.Subjects.Select(s => s.SubjectId).Contains(ss.SubjectId)) // Lọc điểm của các môn trong tổ
-        //                                 .Select(ss => ss.Enrollment.StudentId) // Chọn ra StudentId
-        //                                 .Distinct()
-        //                                 .Count()
-        //        })
-        //        .ToListAsync(); // Thực thi truy vấn và lấy kết quả từ database
+                    // LOGIC ĐẾM HỌC SINH ĐÃ ĐƯỢC SỬA LẠI
+                    StudentCount = group.Subjects
+                        .SelectMany(s => s.TeachingAssignments) // Lấy các phân công giảng dạy
+                        .Join(                                  // Join với bảng Enrollments
+                            _context.Enrollments,
+                            teachingAssignment => teachingAssignment.ClassSessionId, // Khóa từ TeachingAssignment
+                            enrollment => enrollment.ClassSessionId,                 // Khóa từ Enrollment
+                            (teachingAssignment, enrollment) => enrollment.StudentId // Chỉ lấy StudentId từ kết quả join
+                        )
+                        .Distinct()
+                        .Count()
+                })
+                .ToListAsync();
 
-        //    // Sau khi đã có dữ liệu, thực hiện tính toán tỷ lệ trong bộ nhớ
-        //    var result = ratioData.Select(data =>
-        //    {
-        //        string ratio = "N/A";
-        //        if (data.TeacherCount > 0 && data.StudentCount > 0)
-        //        {
-        //            double studentsPerTeacher = Math.Round((double)data.StudentCount / data.TeacherCount, 1);
-        //            ratio = $"1 : {studentsPerTeacher}";
-        //        }
+            // Phần tính toán tỷ lệ không đổi
+            var result = ratioData.Select(data =>
+            {
+                string ratio;
+                if (data.TeacherCount > 0 && data.StudentCount > 0)
+                {
+                    double studentsPerTeacher = Math.Round((double)data.StudentCount / data.TeacherCount, 1);
+                    ratio = $"1 : {studentsPerTeacher}";
+                }
+                else if (data.TeacherCount > 0 && data.StudentCount == 0)
+                {
+                    ratio = "1 : 0";
+                }
+                else
+                {
+                    ratio = "N/A";
+                }
 
-        //        return new TeacherStudentRatioDto
-        //        {
-        //            SubjectGroupName = data.SubjectGroupName,
-        //            TeacherCount = data.TeacherCount,
-        //            StudentCount = data.StudentCount,
-        //            Ratio = ratio
-        //        };
-        //    }).ToList();
+                return new TeacherStudentRatioDto
+                {
+                    SubjectGroupName = data.SubjectGroupName,
+                    TeacherCount = data.TeacherCount,
+                    StudentCount = data.StudentCount,
+                    Ratio = ratio
+                };
+            }).ToList();
 
-        //    return Ok(result);
-        //}
+            return Ok(result);
+        }
     }
 }

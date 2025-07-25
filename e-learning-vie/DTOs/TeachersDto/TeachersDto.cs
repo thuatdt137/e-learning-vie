@@ -6,28 +6,20 @@ namespace e_learning_vie.DTOs.TeachersDto
     {
         public int TeacherId { get; set; }
 
-        public string IdentityCode { get; set; } = null!;
+        public string? IdentityCode { get; set; } = null!;
 
-        [Required(ErrorMessage = "First name is required.")]
-        public string FirstName { get; set; } = null!;
+        public string? FirstName { get; set; } = null!;
 
-        [Required(ErrorMessage = "Last name is required.")]
-        public string LastName { get; set; } = null!;
+        public string? LastName { get; set; } = null!;
+        public bool IsMale { get; set; } 
 
-        [Required(ErrorMessage = "Date of birth is required.")]
-        public DateOnly? DateOfBirth { get; set; }
+        public DateTime? DateOfBirth { get; set; }
 
-        [StringLength(200, ErrorMessage = "Address must be at most 200 characters.")]
         public string? Address { get; set; }
 
-        [RegularExpression(@"^0\d{8,10}$", ErrorMessage = "Phone must start with 0 and contain 9–11 digits.")]
         public string? Phone { get; set; }
 
-        [EmailAddress(ErrorMessage = "Invalid email format.")]
         public string? Email { get; set; }
-
-        [Required(ErrorMessage = "School ID is required.")]
-        public int? SchoolId { get; set; }
     }
 
     public class CreateTeacherDto
@@ -40,6 +32,7 @@ namespace e_learning_vie.DTOs.TeachersDto
 
         [Required(ErrorMessage = "Last name is required.")]
         public string LastName { get; set; }
+        public bool IsMale { get; set; } // Thêm thuộc tính này
 
         [Required(ErrorMessage = "Date of birth is required.")]
         public DateOnly? DateOfBirth { get; set; }
@@ -50,29 +43,20 @@ namespace e_learning_vie.DTOs.TeachersDto
         [RegularExpression(@"^0\d{8,10}$", ErrorMessage = "Phone must start with 0 and contain 9–11 digits.")]
         public string Phone { get; set; }
 
+        [Required]
         [EmailAddress(ErrorMessage = "Invalid email format.")]
         public string Email { get; set; }
-
-        [Required(ErrorMessage = "School ID is required.")]
-        public int SchoolId { get; set; }
     }
 
     public class TeacherScheduleDto
     {
-        public int? ClassId { get; set; }
-
+        public DateTime Date { get; set; }
         public string? DayOfWeek { get; set; }
-
+        public string? SlotName { get; set; }
+        public TimeOnly StartTime { get; set; }
+        public TimeOnly EndTime { get; set; }
         public string? SubjectName { get; set; }
-
-        public int? Slot { get; set; }
-
-        public TimeOnly? StartTime { get; set; }
-
-        public TimeOnly? EndTime { get; set; }
-
-        public string? Room { get; set; }
-
+        public string? ClassName { get; set; }
+        public string? RoomName { get; set; }
     }
-
 }
