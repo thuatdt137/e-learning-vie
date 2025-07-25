@@ -57,5 +57,17 @@ namespace e_learning_vie.Controllers.BusinessManagement
                 return BadRequest(new { message = ex.Message });
             }
         }
+        [HttpGet("academic-level/grade")]
+        public IActionResult GetGradeAcademicLevel(int gradeId, int semesterId)
+        {
+            try
+            {
+                return Ok(_service.GetGradeAcademicLevel(gradeId, semesterId));
+            }
+            catch(Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

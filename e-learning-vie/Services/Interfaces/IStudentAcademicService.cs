@@ -8,5 +8,7 @@ namespace e_learning_vie.Services.Interfaces
         public ClassScoreDTO GetClassScores(int classId, int semesterId);
 
         public ClassAcademicLevelStatisticsDTO GetClassAcademicLevel(int classId, int semesterId);
+
+        public dynamic GetGradeAcademicLevel(int gradeId, int semesterId);
     }
 }
