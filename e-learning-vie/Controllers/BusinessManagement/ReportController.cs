@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Security.Claims;
 using static e_learning_vie.DTOs.ReportDtos.SchoolOverviewDto;
 
 namespace e_learning_vie.Controllers.BusinessManagement
@@ -18,144 +20,115 @@ namespace e_learning_vie.Controllers.BusinessManagement
             _context = context;
         }
 
-        //[HttpGet("teaching-effective/{semesterId}")]
-        ////[Authorize(Roles = "HeaderDepartment")]
-        //public async Task<IActionResult> GetTeachingEffectiveness(int semesterId)
-        //{
-        //    var teachingAssignments = _context.TeachingAssignments
-        //        .Include(ta => ta.Teacher)
-        //        .Include(ta => ta.Subject).ThenInclude(s => s.SubjectGroup)
-        //        .Include(ta => ta.Session).ThenInclude(cs => cs.Class)
-        //        .Include(ta => ta.Session).ThenInclude(cs => cs.Enrollments).ThenInclude(e => e.StudentScores)
-        //        .Where(ta => ta.Session.SemesterId == semesterId)
-        //        .ToList();
+        [HttpGet("department/{subjectGroupId}/latest-semester-scores")]
+        public async Task<ActionResult<object>> GetLatestSemesterScores(int subjectGroupId)
+        {
+            // Xác thực trưởng bộ môn
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var subjectGroup = await _context.SubjectGroups
+                .FirstOrDefaultAsync(sg => sg.SubjectGroupId == subjectGroupId && sg.LeadTeacherId == userId);
+            if (subjectGroup == null)
+            {
+                return Unauthorized(new { Message = "Bạn không có quyền xem điểm số của bộ môn này" });
+            }
 
-        //    if (!teachingAssignments.Any())
-        //    {
-        //        return Ok(ApiResponse<object>.Success("Không có dữ liệu cho semester này", new List<object>()));
-        //    }
+            // Xác định kỳ học mới nhất
+            var currentDate = DateOnly.FromDateTime(DateTime.Now);
+            var latestSemester = await _context.Semesters
+                .Where(s => s.StartDate <= currentDate && s.EndDate >= currentDate)
+                .Include(s => s.AcademicYear)
+                .OrderByDescending(s => s.EndDate)
+                .FirstOrDefaultAsync() ?? await _context.Semesters
+                    .Include(s => s.AcademicYear)
+                    .OrderByDescending(s => s.EndDate)
+                    .FirstOrDefaultAsync();
 
-        //    var groupedData = teachingAssignments
-        //        .GroupBy(ta => new
-        //        {
-        //            ta.Teacher.TeacherId,
-        //            TeacherName = $"{ta.Teacher.FirstName} {ta.Teacher.LastName}",
-        //            ta.Subject.SubjectGroup.SubjectGroupName
-        //        });
+            if (latestSemester == null)
+            {
+                return NotFound(new { Message = "Không tìm thấy kỳ học nào trong cơ sở dữ liệu" });
+            }
 
-        //    var effectiveness = groupedData
-        //        .Select(g => new
-        //        {
-        //            TeacherId = g.Key.TeacherId,
-        //            TeacherName = g.Key.TeacherName,
-        //            SubjectGroup = g.Key.SubjectGroupName,
-        //            ClassCount = g.Count(),
-        //            TotalStudents = g.Sum(ta => ta.Session.Enrollments.Count),
-        //            AverageScore = g.Average(ta => ta.Session.Enrollments
-        //                .SelectMany(e => e.StudentScores)
-        //                .Where(ss => ss.SubjectId == ta.SubjectId)
-        //                .Average(ss => (double?)ss.Score) ?? 0)
-        //        })
-        //        .ToList();
+            // Lấy danh sách ClassSession trong kỳ học mới nhất
+            var classSessions = await _context.ClassSessions
+                .Where(cs => cs.SemesterId == latestSemester.SemesterId)
+                .Select(cs => cs.ClassSessionId)
+                .ToListAsync();
 
-        //    return Ok(ApiResponse<object>.Success("Báo cáo hiệu quả giảng dạy", effectiveness));
-        //}
+            if (!classSessions.Any())
+            {
+                return NotFound(new { Message = $"Không tìm thấy phiên lớp nào trong kỳ {latestSemester.SemesterName} {latestSemester.AcademicYear.YearName}" });
+            }
 
-        //[HttpGet("teaching-performance/{semesterId}")]
-        //public async Task<IActionResult> GetTeachingPerformance(int semesterId, [FromQuery] int? subjectGroupId = null)
-        //{
-        //    var query = _context.TeachingAssignments
-        //        .Include(ta => ta.Teacher)
-        //        .Include(ta => ta.Subject).ThenInclude(s => s.SubjectGroup)
-        //        .Include(ta => ta.Session).ThenInclude(cs => cs.Class)
-        //        .Include(ta => ta.Session).ThenInclude(cs => cs.Enrollments).ThenInclude(e => e.StudentScores)
-        //        .Where(ta => ta.Session.SemesterId == semesterId);
+            // Lấy danh sách môn học thuộc SubjectGroup
+            var subjects = await _context.Subjects
+                .Where(s => s.SubjectGroupId == subjectGroupId)
+                .Select(s => s.SubjectId)
+                .ToListAsync();
 
-        //    if (subjectGroupId.HasValue)
-        //    {
-        //        query = query.Where(ta => ta.Subject.SubjectGroupId == subjectGroupId.Value);
-        //    }
+            if (!subjects.Any())
+            {
+                return NotFound(new { Message = $"Không tìm thấy môn học nào thuộc bộ môn {subjectGroupId}" });
+            }
 
-        //    var teachingAssignments = await query.ToListAsync();
+            // Lấy danh sách ClassSessionId từ TeachingAssignments
+            var classSessionIds = await _context.TeachingAssignments
+                .Where(ta => classSessions.Contains(ta.ClassSessionId) && subjects.Contains(ta.SubjectId.Value))
+                .Select(ta => ta.ClassSessionId)
+                .Distinct()
+                .ToListAsync();
 
-        //    if (!teachingAssignments.Any())
-        //    {
-        //        return Ok(ApiResponse<object>.Success("Không có dữ liệu cho semester hoặc tổ bộ môn này"));
-        //    }
+            if (!classSessionIds.Any())
+            {
+                return NotFound(new { Message = "Không tìm thấy phân công giảng dạy nào cho các môn học trong kỳ này" });
+            }
 
-        //    var performanceBySubjectGroup = teachingAssignments
-        //        .GroupBy(ta => new
-        //        {
-        //            SubjectGroupId = ta.Subject.SubjectGroup != null ? ta.Subject.SubjectGroup.SubjectGroupId : 0,
-        //            SubjectGroupName = ta.Subject.SubjectGroup != null ? ta.Subject.SubjectGroup.SubjectGroupName : "Không có nhóm môn học"
-        //        })
-        //        .Select(g => new
-        //        {
-        //            SubjectGroupId = g.Key.SubjectGroupId,
-        //            SubjectGroupName = g.Key.SubjectGroupName,
+            // Lấy danh sách EnrollmentId từ Enrollments
+            var enrollmentIds = await _context.Enrollments
+                .Where(e => classSessionIds.Contains(e.ClassSessionId))
+                .Select(e => e.EnrollmentId)
+                .ToListAsync();
 
-        //            AverageScore = g.Average(ta => ta.Session.Enrollments
-        //                .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-        //                .Where(ss => ss.SubjectId == ta.SubjectId)
-        //                .Average(ss => (double?)ss.Score) ?? 0),
+            if (!enrollmentIds.Any())
+            {
+                return NotFound(new { Message = "Không tìm thấy học sinh nào được ghi danh trong các phiên lớp này" });
+            }
 
+            // Lấy danh sách StudentScores
+            var studentScores = await _context.StudentScores
+                .Where(ss => enrollmentIds.Contains(ss.EnrollmentId))
+                .Include(ss => ss.Enrollment)
+                    .ThenInclude(e => e.Student)
+                .Include(ss => ss.SubjectScore)
+                    .ThenInclude(ss => ss.Subject)
+                .Include(ss => ss.SubjectScore)
+                    .ThenInclude(ss => ss.ScoreType)
+                .Include(ss => ss.Exam)
+                .Select(ss => new
+                {
+                    StudentId = ss.Enrollment.Student.StudentId,
+                    StudentName = $"{ss.Enrollment.Student.FirstName} {ss.Enrollment.Student.LastName}",
+                    SubjectName = ss.SubjectScore.Subject.SubjectName,
+                    ScoreTypeName = ss.SubjectScore.ScoreType.TypeName,
+                    Score = ss.Score,
+                    Weight = ss.SubjectScore.ScoreType.Weight,
+                    ExamName = ss.Exam != null ? ss.Exam.ExamType : "N/A",
+                    Note = ss.Note ?? "N/A",
+                    ClassSessionId = ss.Enrollment.ClassSessionId
+                })
+                .ToListAsync();
 
-        //            Teachers = g.GroupBy(ta => new
-        //            {
-        //                ta.Teacher.TeacherId,
-        //                TeacherName = $"{ta.Teacher.FirstName} {ta.Teacher.LastName}"
-        //            })
-        //            .Select(t => new
-        //            {
-        //                TeacherId = t.Key.TeacherId,
-        //                TeacherName = t.Key.TeacherName,
-
-        //                ClassCount = t.Count(),
-        //                TotalStudents = t.Sum(ta => ta.Session.Enrollments?.Count ?? 0),
-
-        //                AverageScore = t.Average(ta => ta.Session.Enrollments
-        //                    .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-        //                    .Where(ss => ss.SubjectId == ta.SubjectId)
-        //                    .Average(ss => (double?)ss.Score) ?? 0),
-                        
-        //                PassingRate = t.SelectMany(ta => ta.Session.Enrollments
-        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
-        //                    .Count(ss => ss.Score >= 5) * 100.0 /
-        //                    (t.SelectMany(ta => ta.Session.Enrollments
-        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
-        //                    .Count() > 0 ? t.SelectMany(ta => ta.Session.Enrollments
-        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
-        //                    .Count() : 1),
-                                           
-        //                PerformanceScore = CalculatePerformanceScore(
-        //                    t.Average(ta => ta.Session.Enrollments
-        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-        //                        .Where(ss => ss.SubjectId == ta.SubjectId)
-        //                        .Average(ss => (double?)ss.Score) ?? 0),
-        //                    t.SelectMany(ta => ta.Session.Enrollments
-        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
-        //                    .Count(ss => ss.Score >= 5) * 100.0 /
-        //                    (t.SelectMany(ta => ta.Session.Enrollments
-        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
-        //                    .Count() > 0 ? t.SelectMany(ta => ta.Session.Enrollments
-        //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
-        //                        .Where(ss => ss.SubjectId == ta.SubjectId))
-        //                    .Count() : 1),
-        //                    t.Count(),
-        //                    t.Sum(ta => ta.Session.Enrollments?.Count ?? 0))
-        //            })
-        //            .ToList()
-        //        })
-        //        .OrderBy(g => g.SubjectGroupName)
-        //        .ToList();
-
-        //    return Ok(ApiResponse<object>.Success("Báo cáo hiệu quả giảng dạy theo tổ bộ môn", performanceBySubjectGroup));
-        //}
+            return Ok(new
+            {
+                Message = $"Danh sách điểm số của học sinh trong các môn học thuộc bộ môn {subjectGroupId} trong kỳ {latestSemester.SemesterName} {latestSemester.AcademicYear.YearName}",
+                Semester = new
+                {
+                    SemesterId = latestSemester.SemesterId,
+                    SemesterName = latestSemester.SemesterName,
+                    AcademicYear = latestSemester.AcademicYear.YearName
+                },
+                Data = studentScores
+            });
+        }
 
         private double CalculatePerformanceScore(double averageScore, double passingRate, int classCount, int totalStudents)
         {
