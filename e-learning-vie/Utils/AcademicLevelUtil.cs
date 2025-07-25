@@ -20,14 +20,14 @@ namespace e_learning_vie.Utils
         {
             var conductEnum = EnumExtensions.GetConductEnumFromDisplayName(conductDisplayName);
             if(conductEnum == null)
-                return ConductLevel.Weak.GetDisplayName();
+                return AcademicLevel.Weak.GetDisplayName();
 
             var levels = new List<(string Name, AcademicLevelRule Rule)>
             {
-                (ConductLevel.Excellent.GetDisplayName(), _rules.Excellent),
-                (ConductLevel.Good.GetDisplayName(), _rules.Good),
-                (ConductLevel.Average.GetDisplayName(), _rules.Average),
-                (ConductLevel.Weak.GetDisplayName(), _rules.Weak)
+                (AcademicLevel.Excellent.GetDisplayName(), _rules.Excellent),
+                (AcademicLevel.Good.GetDisplayName(), _rules.Good),
+                (AcademicLevel.Average.GetDisplayName(), _rules.Average),
+                (AcademicLevel.Weak.GetDisplayName(), _rules.Weak)
             };
 
             foreach(var (name, rule) in levels)
@@ -36,8 +36,7 @@ namespace e_learning_vie.Utils
                 bool meetsAllSubjects = subjectAverages.All(score => score >= rule.MinScoreRequired);
                 bool meetsMainSubject = true;
 
-                // Chỉ áp dụng điều kiện main subject với học sinh Giỏi
-                if(name == ConductLevel.Excellent.GetDisplayName())
+                if(name == AcademicLevel.Excellent.GetDisplayName())
                 {
                     meetsMainSubject = mainSubjectAverages.Any(avg => avg >= rule.MainSubjectMin);
                 }
@@ -48,11 +47,11 @@ namespace e_learning_vie.Utils
                     if(conductEnum > rule.MinConduct)
                         continue;
 
-                    return rule.MinConduct.GetDisplayName();
+                    return name;
                 }
             }
 
-            return ConductLevel.Weak.GetDisplayName();
+            return AcademicLevel.Weak.GetDisplayName();
         }
 
     }
