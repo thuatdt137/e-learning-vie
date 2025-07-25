@@ -194,7 +194,8 @@ namespace e_learning_vie.Services.Implements
             {
                 var (fromYear, toYear) = await GetYearRangeAsync(startYear, endYear, yearsBack);
 
-                // Debug: Kiểm tra có semester không
+                Console.WriteLine($"GetAcademicQualityTrendAsync: fromYear={fromYear}, toYear={toYear}");
+
                 var semesters = await _context.Semesters
                     .Include(s => s.AcademicYear)
                     .Where(s => s.AcademicYear.StartDate.HasValue &&
@@ -206,57 +207,97 @@ namespace e_learning_vie.Services.Implements
 
                 Console.WriteLine($"Tìm thấy {semesters.Count} semesters từ {fromYear} đến {toYear}");
 
-                if (!semesters.Any())
-                {
-                    return new List<AcademicQualityTrendDto>();
-                }
-
                 var trends = new List<AcademicQualityTrendDto>();
 
                 foreach (var semester in semesters)
                 {
-                    // Kiểm tra có class sessions không
-                    var classSessionCount = await _context.ClassSessions
-                        .Where(cs => cs.SemesterId == semester.SemesterId)
-                        .CountAsync();
+                    Console.WriteLine($"Xử lý semester: {semester.SemesterName} - {semester.AcademicYear.YearName}");
 
-                    Console.WriteLine($"Semester {semester.SemesterName} có {classSessionCount} class sessions");
-
-                    // Truy vấn trực tiếp điểm số
-                    var scores = await _context.StudentScores
+                    // Tận dụng logic từ StudentAcademicService - lấy điểm theo học sinh
+                    var studentAverages = await _context.StudentScores
+                        .Include(ss => ss.Enrollment)
+                            .ThenInclude(e => e.Student)
+                        .Include(ss => ss.SubjectScore)
+                            .ThenInclude(ssc => ssc.Subject)
                         .Where(ss => ss.Score.HasValue &&
                                     ss.Enrollment.ClassSession.SemesterId == semester.SemesterId)
-                        .Select(ss => ss.Score.Value)
+                        .GroupBy(ss => ss.Enrollment.StudentId)
+                        .Select(g => new
+                        {
+                            StudentId = g.Key,
+                            StudentName = g.First().Enrollment.Student.FirstName + " " + g.First().Enrollment.Student.LastName,
+                            Scores = g.Select(ss => new
+                            {
+                                Subject = ss.SubjectScore.Subject.SubjectName,
+                                Score = ss.Score.Value
+                            }).ToList(),
+                            AverageScore = g.Average(ss => ss.Score.Value),
+                            MinScore = g.Min(ss => ss.Score.Value),
+                            MaxScore = g.Max(ss => ss.Score.Value),
+                            SubjectCount = g.Count()
+                        })
                         .ToListAsync();
 
-                    Console.WriteLine($"Semester {semester.SemesterName} có {scores.Count} điểm");
+                    Console.WriteLine($"Semester {semester.SemesterName}: Có {studentAverages.Count} học sinh với điểm");
 
-                    if (!scores.Any()) continue;
+                    // Debug: In ra thông tin chi tiết từng học sinh
+                    foreach (var student in studentAverages)
+                    {
+                        Console.WriteLine($"- {student.StudentName}: TB={student.AverageScore:F2}, Min={student.MinScore}, Max={student.MaxScore}, Môn={student.SubjectCount}");
+                        foreach (var score in student.Scores)
+                        {
+                            Console.WriteLine($"  + {score.Subject}: {score.Score}");
+                        }
+                    }
 
-                    double avgScore = scores.Average();
+                    if (!studentAverages.Any())
+                    {
+                        Console.WriteLine($"Bỏ qua semester {semester.SemesterName} vì không có dữ liệu điểm");
+                        continue;
+                    }
 
-                    // Sử dụng config từ appsettings.json để phân loại
-                    int excellentCount = scores.Count(s => s >= _academicRules.Excellent.AverageThreshold);
-                    int goodCount = scores.Count(s => s >= _academicRules.Good.AverageThreshold && s < _academicRules.Excellent.AverageThreshold);
-                    int averageCount = scores.Count(s => s >= _academicRules.Average.AverageThreshold && s < _academicRules.Good.AverageThreshold);
-                    int belowAverageCount = scores.Count(s => s < _academicRules.Average.AverageThreshold);
-                    int total = scores.Count;
+                    // Phân loại theo chuẩn Bộ GD&ĐT (tận dụng config từ appsettings)
+                    int excellentCount = studentAverages.Count(s =>
+                        s.AverageScore >= _academicRules.Excellent.AverageThreshold &&
+                        s.MinScore >= 6.5); // Giỏi: TB >= 8.0 và tất cả môn >= 6.5
+
+                    int goodCount = studentAverages.Count(s =>
+                        s.AverageScore >= _academicRules.Good.AverageThreshold &&
+                        s.AverageScore < _academicRules.Excellent.AverageThreshold &&
+                        s.MinScore >= 5.0); // Khá: 6.5 <= TB < 8.0 và tất cả môn >= 5.0
+
+                    int averageCount = studentAverages.Count(s =>
+                        s.AverageScore >= _academicRules.Average.AverageThreshold &&
+                        s.AverageScore < _academicRules.Good.AverageThreshold); // Trung bình: 5.0 <= TB < 6.5
+
+                    int belowAverageCount = studentAverages.Count(s =>
+                        s.AverageScore < _academicRules.Average.AverageThreshold); // Yếu: TB < 5.0
+
+                    int totalCount = studentAverages.Count;
+                    double avgScore = studentAverages.Average(s => s.AverageScore);
+
+                    Console.WriteLine($"Phân loại: Giỏi={excellentCount}, Khá={goodCount}, TB={averageCount}, Yếu={belowAverageCount}, Tổng={totalCount}");
+
+                    // Tính chỉ số chất lượng theo chuẩn Bộ GD&ĐT
+                    var qualityIndex = CalculateQualityIndexByMOET(excellentCount, goodCount, averageCount, belowAverageCount, totalCount);
 
                     trends.Add(new AcademicQualityTrendDto
                     {
                         AcademicYear = semester.AcademicYear.YearName,
                         Semester = semester.SemesterName,
                         OverallAverageScore = Math.Round(avgScore, 2),
-                        ExcellentRate = Math.Round((double)excellentCount / total * 100, 2),
-                        GoodRate = Math.Round((double)goodCount / total * 100, 2),
-                        AverageRate = Math.Round((double)averageCount / total * 100, 2),
-                        BelowAverageRate = Math.Round((double)belowAverageCount / total * 100, 2),
-                        QualityIndex = CalculateQualityIndex(avgScore, excellentCount, total),
+                        ExcellentRate = Math.Round((double)excellentCount / totalCount * 100, 2),
+                        GoodRate = Math.Round((double)goodCount / totalCount * 100, 2),
+                        AverageRate = Math.Round((double)averageCount / totalCount * 100, 2),
+                        BelowAverageRate = Math.Round((double)belowAverageCount / totalCount * 100, 2),
+                        QualityIndex = qualityIndex,
                         ChangeFromPreviousSemester = 0
                     });
+
+                    Console.WriteLine($"Thêm trend: TB={avgScore:F2}, QualityIndex={qualityIndex:F2}");
                 }
 
-                // Tính change từ semester trước
+                // Tính thay đổi từ kỳ trước
                 for (int i = 1; i < trends.Count; i++)
                 {
                     trends[i].ChangeFromPreviousSemester = Math.Round(
@@ -271,6 +312,28 @@ namespace e_learning_vie.Services.Implements
                 Console.WriteLine($"Error in GetAcademicQualityTrendAsync: {ex.Message}\nStackTrace: {ex.StackTrace}");
                 return new List<AcademicQualityTrendDto>();
             }
+        }
+
+        // Hàm tính chỉ số chất lượng theo chuẩn Bộ GD&ĐT
+        private double CalculateQualityIndexByMOET(int excellentCount, int goodCount, int averageCount, int belowAverageCount, int totalCount)
+        {
+            if (totalCount == 0) return 0;
+
+            // Tỷ lệ các loại học lực
+            var excellentRate = (double)excellentCount / totalCount;
+            var goodRate = (double)goodCount / totalCount;
+            var averageRate = (double)averageCount / totalCount;
+            var belowAverageRate = (double)belowAverageCount / totalCount;
+
+            // Công thức theo Thông tư 22/2021/TT-BGDĐT
+            var qualityIndex =
+                excellentRate * 4 +     // Xuất sắc: hệ số 4
+                goodRate * 3 +          // Giỏi: hệ số 3  
+                averageRate * 2 +       // Khá: hệ số 2
+                belowAverageRate * 1;   // Đạt: hệ số 1
+
+            // Nhân với 100 để có chỉ số từ 0-400
+            return Math.Round(qualityIndex * 100, 2);
         }
 
         public async Task<List<GradePerformanceTrendDto>> GetGradePerformanceTrendAsync(int gradeId, int? startYear = null, int? endYear = null, int? yearsBack = null)
@@ -402,43 +465,6 @@ namespace e_learning_vie.Services.Implements
             }
         }
 
-        public async Task<object> GetOverallTrendSummaryAsync(int? startYear = null, int? endYear = null, int? yearsBack = null)
-        {
-            try
-            {
-                var enrollmentTrend = await GetEnrollmentTrendAsync(startYear, endYear, yearsBack);
-                var qualityTrend = await GetAcademicQualityTrendAsync(startYear, endYear, yearsBack);
-
-                return new
-                {
-                    EnrollmentTrend = new
-                    {
-                        CurrentTotal = enrollmentTrend.LastOrDefault()?.TotalStudents ?? 0,
-                        YearOverYearChange = enrollmentTrend.LastOrDefault()?.ChangePercentage ?? 0,
-                        TrendData = enrollmentTrend
-                    },
-                    QualityTrend = new
-                    {
-                        CurrentQualityIndex = qualityTrend.LastOrDefault()?.QualityIndex ?? 0,
-                        RecentChange = qualityTrend.LastOrDefault()?.ChangeFromPreviousSemester ?? 0,
-                        TrendData = qualityTrend
-                    },
-                    AcademicStandards = new
-                    {
-                        ExcellentThreshold = _academicRules.Excellent.AverageThreshold,
-                        GoodThreshold = _academicRules.Good.AverageThreshold,
-                        AverageThreshold = _academicRules.Average.AverageThreshold,
-                        WeakThreshold = _academicRules.Weak.AverageThreshold
-                    }
-                };
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in GetOverallTrendSummaryAsync: {ex.Message}");
-                return new { EnrollmentTrend = new { }, QualityTrend = new { } };
-            }
-        }
-
         private int GetGradeCount(Dictionary<string, int> gradeCounts, string gradeNumber)
         {
             var patterns = new[] {
@@ -458,17 +484,6 @@ namespace e_learning_vie.Services.Implements
             }
 
             return 0;
-        }
-
-        private double CalculateQualityIndex(double avgScore, int excellentCount, int totalCount)
-        {
-            // Công thức tính chỉ số chất lượng dựa trên config
-            var excellentRate = (double)excellentCount / totalCount;
-            return Math.Round(
-                avgScore * 10 +
-                excellentRate * 20 +
-                (avgScore >= _academicRules.Good.AverageThreshold ? 5 : 0),
-                2);
         }
     }
 }

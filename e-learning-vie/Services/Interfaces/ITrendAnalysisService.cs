@@ -9,6 +9,5 @@ namespace e_learning_vie.Services.Interfaces
         Task<List<AcademicQualityTrendDto>> GetAcademicQualityTrendAsync(int? startYear = null, int? endYear = null, int? yearsBack = null);
         Task<List<GradePerformanceTrendDto>> GetGradePerformanceTrendAsync(int gradeId, int? startYear = null, int? endYear = null, int? yearsBack = null);
         Task<List<SubjectPerformanceTrendDto>> GetSubjectPerformanceTrendAsync(int subjectId, int? startYear = null, int? endYear = null, int? yearsBack = null);
-        Task<object> GetOverallTrendSummaryAsync(int? startYear = null, int? endYear = null, int? yearsBack = null);
     }
 }

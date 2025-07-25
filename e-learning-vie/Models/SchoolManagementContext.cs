@@ -40,7 +40,7 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
     public virtual DbSet<Grade> Grades { get; set; }
 
     public virtual DbSet<Exam> Exams { get; set; }
-    
+
     public virtual DbSet<Enrollment> Enrollments { get; set; }
 
     public virtual DbSet<ClassSession> ClassSessions { get; set; }

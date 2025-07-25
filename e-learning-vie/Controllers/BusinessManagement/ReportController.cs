@@ -267,7 +267,7 @@ namespace e_learning_vie.Controllers.BusinessManagement
             {
                 GradeName = g.GradeName,
                 StudentCount = g.StudentCount,
-                Percentage = $"{Math.Round((double)g.StudentCount / totalStudents * 100, 2)}%", 
+                Percentage = $"{Math.Round((double)g.StudentCount / totalStudents * 100, 2)}%",
                 YearName = latestAcademicYear.YearName
             }).ToList();
 
@@ -327,16 +327,6 @@ namespace e_learning_vie.Controllers.BusinessManagement
         {
             var result = await _trendAnalysisService.GetAcademicQualityTrendAsync(startYear, endYear, yearsBack);
             return Ok(ApiResponse<object>.Success("Xu hướng chất lượng học tập", result));
-        }
-        [HttpGet("overall-summary")]
-        //  [Authorize(Roles = "Principal")]
-        public async Task<IActionResult> GetOverallTrendSummary(
-           [FromQuery] int? startYear = null,
-           [FromQuery] int? endYear = null,
-           [FromQuery] int? yearsBack = null)
-        {
-            var result = await _trendAnalysisService.GetOverallTrendSummaryAsync(startYear, endYear, yearsBack);
-            return Ok(ApiResponse<object>.Success("Tổng quan xu hướng", result));
         }
     }
 }
