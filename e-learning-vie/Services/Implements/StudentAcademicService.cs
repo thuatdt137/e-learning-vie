@@ -176,9 +176,9 @@ namespace e_learning_vie.Services.Implements
 
 
 
-        public dynamic GetClassAcademicLevel(int classId, int semesterId)
+        public ClassAcademicLevelStatisticsDTO GetClassAcademicLevel(int classId, int semesterId)
         {
-            var classScores = GetClassScores(classId, semesterId);
+            var classScores = GetClassScores(classId, semesterId); // dùng DTO thay vì dynamic
 
             var academicLevelStats = new Dictionary<string, int>
             {
@@ -196,43 +196,77 @@ namespace e_learning_vie.Services.Implements
                 { ConductLevel.Weak.GetDisplayName(), 0 }
             };
 
+            var subjectScoreSums = new Dictionary<int, (double total, int count)>();
+
+            double totalAvg = 0;
+            int studentCount = classScores.Students.Count;
 
             foreach(var student in classScores.Students)
             {
-                var hocLuc = student.AcademicLevel?.Trim();
-                if(!string.IsNullOrEmpty(hocLuc) && academicLevelStats.ContainsKey(hocLuc))
-                {
-                    academicLevelStats[hocLuc]++;
-                }
+                var academic = student.AcademicLevel?.Trim();
+                if(!string.IsNullOrEmpty(academic) && academicLevelStats.ContainsKey(academic))
+                    academicLevelStats[academic]++;
 
-                var hanhKiem = student.Conduct?.Trim();
-                if(!string.IsNullOrEmpty(hanhKiem) && conductStats.ContainsKey(hanhKiem))
+                var conduct = student.Conduct?.Trim();
+                if(!string.IsNullOrEmpty(conduct) && conductStats.ContainsKey(conduct))
+                    conductStats[conduct]++;
+
+
+
+                foreach(var subject in student.Scores)
                 {
-                    conductStats[hanhKiem]++;
+                    if(!subjectScoreSums.ContainsKey(subject.SubjectId))
+                        subjectScoreSums[subject.SubjectId] = (0, 0);
+
+                    subjectScoreSums[subject.SubjectId] = (
+                        subjectScoreSums[subject.SubjectId].total + subject.AverageScore,
+                        subjectScoreSums[subject.SubjectId].count + 1
+                    );
                 }
             }
+
+
+            var subjectAverages = subjectScoreSums.Select(kv =>
+            {
+                var avgScore = Math.Round(kv.Value.total / kv.Value.count, 1, MidpointRounding.AwayFromZero);
+                totalAvg += avgScore;
+                var subject = _context.Subjects.FirstOrDefault(s => s.SubjectId == kv.Key);
+                return new SubjectAverageDTO
+                {
+                    SubjectId = kv.Key,
+                    SubjectName = classScores.Students
+                    .SelectMany(s => s.Scores)
+                    .FirstOrDefault(sc => sc.SubjectId == kv.Key)?.SubjectName ?? "Unknown",
+                    IsMainSubject = subject?.IsMainSubject ?? false,
+                    AverageScore = avgScore,
+                };
+            }).ToList();
 
             var enrollments = _context.Enrollments
                 .Include(e => e.Student)
                 .Where(e => e.ClassSessionId == classId && e.ClassSession.SemesterId == semesterId)
                 .ToList();
 
-            return new
+            return new ClassAcademicLevelStatisticsDTO
             {
-                classId = classScores.ClassId,
-                className = classScores.ClassName,
-                semesterId = classScores.SemesterId,
-                semesterName = classScores.SemesterName,
-                academicYear = classScores.AcademicYear,
+                ClassId = classScores.ClassId,
+                ClassName = classScores.ClassName,
+                SemesterId = classScores.SemesterId,
+                SemesterName = classScores.SemesterName,
+                AcademicYear = classScores.AcademicYear,
 
-                totalStudents = enrollments.Count,
-                maleStudents = enrollments.Count(e => e.Student.IsMale),
-                femaleStudents = enrollments.Count(e => !e.Student.IsMale),
+                TotalStudents = enrollments.Count,
+                MaleStudents = enrollments.Count(e => e.Student.IsMale),
+                FemaleStudents = enrollments.Count(e => !e.Student.IsMale),
 
-                academicLevelStats = academicLevelStats,
-                conductStats = conductStats
+                AverageScore = studentCount > 0 ? Math.Round(totalAvg / studentCount, 1) : 0,
+                SubjectAverages = subjectAverages,
+
+                AcademicLevelStats = academicLevelStats,
+                ConductStats = conductStats
             };
         }
+
 
     }
 }
