@@ -20,33 +20,58 @@ namespace e_learning_vie.Controllers.ClassesManagement
 
         // GET: api/Classes
         [HttpGet]
-        public IActionResult GetAllClasses(int? pageNumber, int? pageSize, string? keyWord)
+        public async Task<IActionResult> GetAllClasses([FromQuery] int? pageNumber, [FromQuery] int? pageSize, [FromQuery] string? keyWord)
         {
             try
             {
+                var query = _context.Classes
+                    .AsNoTracking()
+                    .Include(c => c.Grade)
+                    .AsQueryable();
+
+                if (!string.IsNullOrWhiteSpace(keyWord))
+                {
+                    string keywordLower = keyWord.ToLower().Trim();
+                    query = query.Where(c =>
+                        (c.ClassName != null && c.ClassName.ToLower().Contains(keywordLower)) ||
+                        (c.Grade != null && c.Grade.GradeName != null && c.Grade.GradeName.ToLower().Contains(keywordLower))
+                    );
+                }
+
+                var totalItems = await query.CountAsync();
+
+                // FIX CS0117: Sửa lại logic phân trang để chỉ dùng hàm GetPagingParameters
+                // 1. Lấy các tham số phân trang đã được chuẩn hóa
                 var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
-                keyWord = keyWord?.Trim() ?? "";
 
-                var classes = _context.Classes.Select(c => new ClassListDto(c)).ToList();
+                // 2. Sắp xếp và áp dụng Skip/Take trên CSDL
+                var pagedQuery = query.OrderBy(c => c.Grade!.GradeId).ThenBy(c => c.ClassName)
+                                      .Skip((effectivePageNumber - 1) * effectivePageSize)
+                                      .Take(effectivePageSize);
 
-                if (!string.IsNullOrEmpty(keyWord))
+                // 3. Thực thi truy vấn và map sang DTO
+                var classDtos = await pagedQuery.Select(c => new ClassListDto
                 {
-                    classes = classes.Where(s => s.ClassName.Contains(keyWord, StringComparison.OrdinalIgnoreCase)).ToList();
+                    ClassId = c.ClassId,
+                    ClassName = c.ClassName,
+                    GradeName = c.Grade!.GradeName
+                }).ToListAsync();
+
+
+                if (totalItems == 0)
+                {
+                    return NotFound(ApiResponse<object>.Fail("No classes found!"));
                 }
 
-                if (pageSize != null && pageNumber != null)
-                {
-                    classes = classes
-                    .Skip((effectivePageNumber - 1) * effectivePageSize)
-                    .Take(effectivePageSize)
-                    .ToList();
-                }
+                // 4. Tạo đối tượng trả về với các tham số đã tính toán
+                var paginatedResponse = new PaginatedResponse<ClassListDto>(
+                    classDtos,
+                    totalItems,
+                    effectivePageNumber,
+                    effectivePageSize
+                );
 
-                if (classes == null || !classes.Any())
-                {
-                    return StatusCode(StatusCodes.Status404NotFound, ApiResponse<object>.Fail("No classes found!"));
-                }
-                return StatusCode(StatusCodes.Status200OK, ApiResponse<object>.Success("Get class list success", classes.ToList()));
+                return Ok(ApiResponse<object>.Success("Get class list success", paginatedResponse));
             }
             catch (Exception ex)
             {
@@ -61,11 +86,19 @@ namespace e_learning_vie.Controllers.ClassesManagement
             try
             {
                 var cls = await _context.Classes
+                    .AsNoTracking()
+                    .Include(c => c.Grade)
                     .Where(c => c.ClassId == id)
-                    .Select(c => new
+                    .Select(c => new ClassDetailDto
                     {
-                        c.ClassId,
-                        c.ClassName
+                        ClassId = c.ClassId,
+                        ClassName = c.ClassName,
+                        GradeId = c.GradeId,
+                        GradeName = c.Grade!.GradeName,
+                        StudentCount = c.ClassSessions
+                                        .OrderByDescending(cs => cs.Semester.StartDate)
+                                        .FirstOrDefault()!
+                                        .Enrollments.Count()
                     })
                     .FirstOrDefaultAsync();
 
@@ -88,38 +121,43 @@ namespace e_learning_vie.Controllers.ClassesManagement
         {
             if (!ModelState.IsValid)
             {
-                var errors = ModelState
-                    .Where(e => e.Value?.Errors.Count > 0)
-                    .ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-                    );
-                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ.", errors));
+                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ.", ModelState));
             }
 
             try
             {
-                var isExist = await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName);
-                if (isExist)
+                if (await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName))
                 {
                     return Conflict(ApiResponse<object>.Fail($"Lớp '{dto.ClassName}' đã tồn tại."));
                 }
 
-                var newClass = dto.ToClass();
+                if (!await _context.Grades.AnyAsync(g => g.GradeId == dto.GradeId))
+                {
+                    return BadRequest(ApiResponse<object>.Fail($"Khối có ID '{dto.GradeId}' không tồn tại."));
+                }
+
+                var newClass = new Class
+                {
+                    ClassName = dto.ClassName,
+                    GradeId = dto.GradeId
+                };
 
                 _context.Classes.Add(newClass);
                 await _context.SaveChangesAsync();
 
-                return StatusCode(201, ApiResponse<object>.Success("Tạo lớp thành công.", new
+                var resultDto = new ClassListDto
                 {
-                    newClass.ClassId,
-                    newClass.ClassName
-                }));
+                    ClassId = newClass.ClassId,
+                    ClassName = newClass.ClassName,
+                    GradeName = (await _context.Grades.FindAsync(newClass.GradeId))?.GradeName
+                };
+
+                return CreatedAtAction(nameof(GetClassById), new { id = newClass.ClassId },
+                    ApiResponse<object>.Success("Tạo lớp thành công.", resultDto));
             }
             catch (Exception ex)
             {
-                var inner = ex.InnerException?.Message ?? ex.Message;
-                return StatusCode(500, ApiResponse<object>.Error($"Lỗi hệ thống khi tạo lớp: {inner}"));
+                return StatusCode(500, ApiResponse<object>.Error($"Lỗi hệ thống khi tạo lớp: {ex.Message}"));
             }
         }
 
@@ -127,20 +165,9 @@ namespace e_learning_vie.Controllers.ClassesManagement
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateClass(int id, [FromBody] ClassUpdateDto dto)
         {
-            if (id != dto.ClassId)
+            if (id != dto.ClassId || !ModelState.IsValid)
             {
-                return BadRequest(ApiResponse<object>.Fail("ID không khớp giữa URL và dữ liệu gửi lên."));
-            }
-
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState
-                    .Where(e => e.Value?.Errors.Count > 0)
-                    .ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-                    );
-                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ.", errors));
+                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ hoặc ID không khớp."));
             }
 
             try
@@ -151,23 +178,22 @@ namespace e_learning_vie.Controllers.ClassesManagement
                     return NotFound(ApiResponse<object>.Fail($"Không tìm thấy lớp có ID = {id}."));
                 }
 
-                bool isDuplicate = await _context.Classes
-                    .AnyAsync(c => c.ClassName == dto.ClassName && c.ClassId != id);
-
-                if (isDuplicate)
+                if (await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName && c.ClassId != id))
                 {
                     return Conflict(ApiResponse<object>.Fail($"Tên lớp '{dto.ClassName}' đã tồn tại."));
                 }
 
+                if (!await _context.Grades.AnyAsync(g => g.GradeId == dto.GradeId))
+                {
+                    return BadRequest(ApiResponse<object>.Fail($"Khối có ID '{dto.GradeId}' không tồn tại."));
+                }
+
                 existingClass.ClassName = dto.ClassName;
+                existingClass.GradeId = dto.GradeId;
 
                 await _context.SaveChangesAsync();
 
                 return Ok(ApiResponse<object>.Success("Cập nhật lớp thành công."));
-            }
-            catch (DbUpdateException ex)
-            {
-                return StatusCode(500, ApiResponse<object>.Error($"Lỗi khi cập nhật database: {ex.Message}"));
             }
             catch (Exception ex)
             {
