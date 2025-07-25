@@ -7,11 +7,11 @@
         public DateTime EnteredDate { get; set; }
         public string? Note { get; set; }
         public int EnrollmentId { get; set; }
-        public int SubjectId { get; set; }
+        public int SubjectScoreId { get; set; }
         public int? ExamId { get; set; }
 
         public virtual Exam? Exam { get; set; }
         public virtual Enrollment Enrollment { get; set; }
-        public virtual Subject Subject { get; set; }
+        public virtual SubjectScore SubjectScore { get; set; }
     }
 }

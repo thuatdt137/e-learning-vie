@@ -222,10 +222,10 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
                 .HasForeignKey(d => d.EnrollmentId)
                 .HasConstraintName("FK__StudentScore__Enrollment");
 
-            entity.Property(e => e.SubjectId).HasColumnName("SubjectID");
-            entity.HasOne(d => d.Subject).WithMany(p => p.StudentScores)
-                .HasForeignKey(d => d.SubjectId)
-                .HasConstraintName("FK__StudentScore__Subject");
+            entity.Property(e => e.SubjectScoreId).HasColumnName("SubjectScoreID");
+            entity.HasOne(d => d.SubjectScore).WithMany(p => p.StudentScores)
+                .HasForeignKey(d => d.SubjectScoreId)
+                .HasConstraintName("FK__StudentScore__SubjectScore");
 
             entity.Property(e => e.ExamId).HasColumnName("ExamID");
             entity.HasOne(d => d.Exam).WithMany(p => p.StudentScores)

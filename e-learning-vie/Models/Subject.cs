@@ -17,7 +17,6 @@ public partial class Subject
 
     public int SubjectGroupId { get; set; }
 
-    public virtual ICollection<StudentScore> StudentScores { get; set; } = new List<StudentScore>();
 
     public virtual ICollection<TeachingAssignment> TeachingAssignments { get; set; } = new List<TeachingAssignment>();
 
