@@ -267,6 +267,88 @@ namespace e_learning_vie.Services.Implements
             };
         }
 
+        public dynamic GetGradeAcademicLevel(int gradeId, int semesterId)
+        {
+            var semester = _context.Semesters
+                .Include(s => s.AcademicYear)
+                .FirstOrDefault(s => s.SemesterId == semesterId);
+
+            if(semester == null)
+                throw new Exception("Semester not found");
+
+            var grade = _context.Grades.FirstOrDefault(g => g.GradeId == gradeId);
+            if(grade == null)
+                throw new Exception("Grade not found");
+
+            var classSessions = _context.ClassSessions
+                .Include(cs => cs.Class)
+                .Where(cs => cs.Class.GradeId == gradeId && cs.SemesterId == semesterId)
+                .ToList();
+
+            var resultClasses = new List<object>();
+            int totalStudents = 0, maleStudents = 0, femaleStudents = 0;
+
+            var academicLevelStats = new Dictionary<string, int>
+    {
+        { AcademicLevel.Excellent.GetDisplayName(), 0 },
+        { AcademicLevel.Good.GetDisplayName(), 0 },
+        { AcademicLevel.Average.GetDisplayName(), 0 },
+        { AcademicLevel.Weak.GetDisplayName(), 0 }
+    };
+
+            var conductStats = new Dictionary<string, int>
+    {
+        { ConductLevel.Excellent.GetDisplayName(), 0 },
+        { ConductLevel.Good.GetDisplayName(), 0 },
+        { ConductLevel.Average.GetDisplayName(), 0 },
+        { ConductLevel.Weak.GetDisplayName(), 0 }
+    };
+
+            foreach(var cs in classSessions)
+            {
+                var classStats = GetClassAcademicLevel(cs.ClassId, semesterId);
+
+                totalStudents += classStats.TotalStudents;
+                maleStudents += classStats.MaleStudents;
+                femaleStudents += classStats.FemaleStudents;
+
+                // Gộp thống kê học lực
+                foreach(var key in academicLevelStats.Keys.ToList())
+                    academicLevelStats[key] += classStats.AcademicLevelStats.ContainsKey(key) ? classStats.AcademicLevelStats[key] : 0;
+
+                // Gộp thống kê hạnh kiểm
+                foreach(var key in conductStats.Keys.ToList())
+                    conductStats[key] += classStats.ConductStats.ContainsKey(key) ? classStats.ConductStats[key] : 0;
+
+                // Gộp danh sách lớp
+                resultClasses.Add(new
+                {
+                    classId = classStats.ClassId,
+                    className = classStats.ClassName,
+                    totalStudents = classStats.TotalStudents,
+                    academicLevelStats = classStats.AcademicLevelStats,
+                    conductStats = classStats.ConductStats
+                });
+            }
+
+            return new
+            {
+                gradeId = grade.GradeId,
+                gradeName = grade.GradeName,
+                semesterId = semester.SemesterId,
+                semesterName = semester.SemesterName,
+                academicYear = semester.AcademicYear.YearName,
+
+                totalStudents,
+                maleStudents,
+                femaleStudents,
+
+                academicLevelStats,
+                conductStats,
+
+                classes = resultClasses
+            };
+        }
 
     }
 }
