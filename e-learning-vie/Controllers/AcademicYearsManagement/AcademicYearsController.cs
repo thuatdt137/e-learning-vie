@@ -17,7 +17,13 @@ namespace e_learning_vie.Controllers.AcademicYearsManagement
         [HttpGet]
         public IActionResult GetAcademicYears()
         {
-            var academicYears = _context.AcademicYears.ToList();
+            var academicYears = _context.AcademicYears.Select(a => new AcademicYearDTO
+            {
+                AcademicYearId = a.AcademicYearId,
+                YearName = a.YearName,
+                StartDate = a.StartDate,
+                EndDate = a.EndDate
+            }).ToList();
             return Ok(ApiResponse<object>.Success("Success", academicYears));
         }
 
@@ -76,6 +82,25 @@ namespace e_learning_vie.Controllers.AcademicYearsManagement
             academicYear.EndDate = academicYearDTO.EndDate;
             _context.SaveChanges();
             return Ok(ApiResponse<object>.Success("Academic year updated successfully.", academicYear));
+        }
+        [HttpGet("{id}")]
+        public IActionResult GetAcademicYearById(int id)
+        {
+            var academicYear = _context.AcademicYears
+                .Where(a => a.AcademicYearId == id)
+                .Select(a => new AcademicYearDTO
+                {
+                    AcademicYearId = a.AcademicYearId,
+                    YearName = a.YearName,
+                    StartDate = a.StartDate,
+                    EndDate = a.EndDate
+                })
+                .FirstOrDefault();
+            if(academicYear == null)
+            {
+                return NotFound(ApiResponse<object>.Fail("Academic year not found."));
+            }
+            return Ok(ApiResponse<object>.Success("Success", academicYear));
         }
     }
 }
