@@ -73,7 +73,6 @@ namespace e_learning_vie.Services.Implements
             };
         }
 
-
         public ClassScoreDTO GetClassScores(int classId, int semesterId)
         {
             var semester = _context.Semesters.Include(s => s.AcademicYear)
