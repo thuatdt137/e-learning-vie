@@ -16,11 +16,12 @@ namespace e_learning_vie.Controllers.BusinessManagement
         private readonly IStudentAcademicService _service;
 
         private readonly ITrendAnalysisService _trendAnalysisService;
-        public PerformancesController(SchoolManagementContext context, IOptions<AcademicLevelRulesConfig> rules, IStudentAcademicService service)
+        public PerformancesController(SchoolManagementContext context, IOptions<AcademicLevelRulesConfig> rules, IStudentAcademicService service, ITrendAnalysisService trendAnalysisService)
         {
             _context = context;
             _rules = rules.Value;
             _service = service;
+            _trendAnalysisService = trendAnalysisService;
         }
 
         [HttpGet("scores/student")]

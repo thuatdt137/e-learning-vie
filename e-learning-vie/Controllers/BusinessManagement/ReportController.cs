@@ -1,6 +1,7 @@
 ﻿using e_learning_vie.Commons;
 using e_learning_vie.Models;
 using e_learning_vie.Services.Implements;
+using e_learning_vie.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,8 +15,8 @@ namespace e_learning_vie.Controllers.BusinessManagement
     public class ReportController : ControllerBase
     {
         private readonly SchoolManagementContext _context;
-        private readonly TrendAnalysisService _trendAnalysisService;
-        public ReportController(SchoolManagementContext context, TrendAnalysisService trendAnalysisService)
+        private readonly ITrendAnalysisService _trendAnalysisService;
+        public ReportController(SchoolManagementContext context, ITrendAnalysisService trendAnalysisService)
         {
             _context = context;
             _trendAnalysisService = trendAnalysisService;
@@ -120,7 +121,7 @@ namespace e_learning_vie.Controllers.BusinessManagement
         //                    .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
         //                    .Where(ss => ss.SubjectId == ta.SubjectId)
         //                    .Average(ss => (double?)ss.Score) ?? 0),
-                        
+
         //                PassingRate = t.SelectMany(ta => ta.Session.Enrollments
         //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
         //                        .Where(ss => ss.SubjectId == ta.SubjectId))
@@ -132,7 +133,7 @@ namespace e_learning_vie.Controllers.BusinessManagement
         //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
         //                        .Where(ss => ss.SubjectId == ta.SubjectId))
         //                    .Count() : 1),
-                                           
+
         //                PerformanceScore = CalculatePerformanceScore(
         //                    t.Average(ta => ta.Session.Enrollments
         //                        .SelectMany(e => e.StudentScores ?? Enumerable.Empty<StudentScore>())
@@ -330,18 +331,24 @@ namespace e_learning_vie.Controllers.BusinessManagement
         //    return Ok(result);
         //}
         [HttpGet("enrollment-trend")]
-        [Authorize(Roles = "Principal")]
         public async Task<IActionResult> GetEnrollmentTrend(
-            [FromQuery] int? startYear = null,
-            [FromQuery] int? endYear = null,
-            [FromQuery] int? yearsBack = null)
+    [FromQuery] int? startYear = null,
+    [FromQuery] int? endYear = null,
+    [FromQuery] int? yearsBack = null)
         {
-            var result = await _trendAnalysisService.GetEnrollmentTrendAsync(startYear, endYear, yearsBack);
-            return Ok(ApiResponse<object>.Success("Xu hướng sĩ số học sinh", result));
+            try
+            {
+                var result = await _trendAnalysisService.GetEnrollmentTrendAsync(startYear, endYear, yearsBack);
+                return Ok(ApiResponse<object>.Success("Xu hướng sĩ số học sinh", result));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Error("Internal server error: " + ex.Message));
+            }
         }
 
         [HttpGet("academic-quality-trend")]
-        [Authorize(Roles = "Principal")]
+        // [Authorize(Roles = "Principal")]
         public async Task<IActionResult> GetAcademicQualityTrend(
             [FromQuery] int? startYear = null,
             [FromQuery] int? endYear = null,
@@ -351,7 +358,7 @@ namespace e_learning_vie.Controllers.BusinessManagement
             return Ok(ApiResponse<object>.Success("Xu hướng chất lượng học tập", result));
         }
         [HttpGet("overall-summary")]
-         [Authorize(Roles = "Principal")]
+        //  [Authorize(Roles = "Principal")]
         public async Task<IActionResult> GetOverallTrendSummary(
            [FromQuery] int? startYear = null,
            [FromQuery] int? endYear = null,
