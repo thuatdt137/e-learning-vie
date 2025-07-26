@@ -1,6 +1,7 @@
 ﻿using e_learning_vie.Commons;
 using e_learning_vie.DTOs.StudentDtos;
 using e_learning_vie.Models;
+using e_learning_vie.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,6 @@ namespace e_learning_vie.Controllers.StudentsManagement
 {
     [Route("api/[controller]")]
     [ApiController]
-
     public class StudentsController : ControllerBase
     {
         private readonly SchoolManagementContext _context;
@@ -24,216 +24,248 @@ namespace e_learning_vie.Controllers.StudentsManagement
         }
 
         // GET: api/Students
-        //[Authorize(Roles = "TrainingDepartment")]
         [HttpGet]
-        public async Task<ActionResult> GetStudents(
+        public async Task<ActionResult<PaginatedResponse<StudentListDto>>> GetStudents(
             [FromQuery] int? pageNumber,
             [FromQuery] int? pageSize,
-            int? classId, int? semesterId)
+            [FromQuery] string? keyword)
         {
+            var query = _context.Students.AsNoTracking();
 
-            if(semesterId == null)
-                semesterId = _context.Semesters.OrderByDescending(s => s.StartDate).Take(1).Select(s => s.SemesterId).FirstOrDefault();
-            if(semesterId == null)
-                return NotFound(ApiResponse<string>.Fail("Không tìm thấy học kỳ hiện tại."));
-
-            var students = _context.Students.Include(s => s.Enrollments).ThenInclude(s => s.ClassSession).ThenInclude(s => s.Semester)
-                .Include(s => s.Enrollments).ThenInclude(s => s.ClassSession).ThenInclude(s => s.Class)
-                .Where(s => s.Enrollments.Any(e => e.ClassSession.SemesterId == semesterId));
-
-            if(classId.HasValue)
+            if (!string.IsNullOrWhiteSpace(keyword))
             {
-                students = students.Where(s => s.Enrollments.Any(e => e.ClassSession.ClassId == classId));
+                string kw = keyword.ToLower().Trim();
+                query = query.Where(s =>
+                    (s.FirstName != null && s.FirstName.ToLower().Contains(kw)) ||
+                    (s.LastName != null && s.LastName.ToLower().Contains(kw)) ||
+                    (s.IdentityCode != null && s.IdentityCode.ToLower().Contains(kw))
+                );
             }
 
-            var result = await students
-                .Select(s => new
-                {
-                    StudentId = s.StudentId,
-                    IdentityCode = s.IdentityCode,
-                    FirstName = s.FirstName,
-                    LastName = s.LastName,
-                })
-                .ToListAsync();
+            var totalItems = await query.CountAsync();
+            var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
+            var pagedEntities = await query.OrderBy(s => s.FirstName)
+                                           .Skip((effectivePageNumber - 1) * effectivePageSize)
+                                           .Take(effectivePageSize)
+                                           .ToListAsync();
 
-            return Ok(ApiResponse<object>.Success("Success", result));
+            var studentDtos = pagedEntities.Select(s => new StudentListDto
+            {
+                StudentId = s.StudentId,
+                IdentityCode = s.IdentityCode,
+                FullName = $"{s.FirstName} {s.LastName}",
+                IsMale = s.IsMale,
+                DateOfBirth = s.DateOfBirth.HasValue ? s.DateOfBirth.Value.ToDateTime(TimeOnly.MinValue) : null,
+                CurrentClassName = _context.Enrollments
+                                    .Where(e => e.StudentId == s.StudentId)
+                                    .OrderByDescending(e => e.ClassSession.Semester.StartDate)
+                                    .Select(e => e.ClassSession.Class.ClassName)
+                                    .FirstOrDefault()
+            }).ToList();
+
+            var paginatedResponse = new PaginatedResponse<StudentListDto>(studentDtos, totalItems, effectivePageNumber, effectivePageSize);
+            return Ok(ApiResponse<object>.Success("Lấy danh sách học sinh thành công", paginatedResponse));
         }
 
         // GET: api/Students/5
         [HttpGet("{id}")]
         public async Task<ActionResult<StudentDetailsDto>> GetStudentById(int id)
         {
+            var student = await _context.Students
+                .AsNoTracking()
+                .Include(s => s.StudentParents).ThenInclude(sp => sp.Parent)
+                .Include(s => s.Enrollments).ThenInclude(e => e.ClassSession).ThenInclude(cs => cs.Class)
+                .Include(s => s.Enrollments).ThenInclude(e => e.ClassSession).ThenInclude(cs => cs.HomeroomTeacher)
+                .Include(s => s.Enrollments).ThenInclude(e => e.ClassSession).ThenInclude(cs => cs.Semester)
+                .FirstOrDefaultAsync(s => s.StudentId == id);
 
+            if (student == null)
+            {
+                return NotFound(ApiResponse<object>.Fail("Không tìm thấy học sinh."));
+            }
 
+            var latestEnrollment = student.Enrollments.OrderByDescending(e => e.ClassSession.Semester.StartDate).FirstOrDefault();
 
-            return Ok(ApiResponse<StudentDetailsDto>.Success("Get student successfully"));
+            var studentDetails = new StudentDetailsDto
+            {
+                StudentId = student.StudentId,
+                IdentityCode = student.IdentityCode,
+                FirstName = student.FirstName,
+                LastName = student.LastName,
+                IsMale = student.IsMale,
+                DateOfBirth = student.DateOfBirth.HasValue ? student.DateOfBirth.Value.ToDateTime(TimeOnly.MinValue) : null,
+                Address = student.Address,
+                Phone = student.Phone,
+                Email = student.Email,
+                CurrentClassName = latestEnrollment?.ClassSession.Class.ClassName,
+                HomeroomTeacherName = latestEnrollment?.ClassSession.HomeroomTeacher != null ? $"{latestEnrollment.ClassSession.HomeroomTeacher.FirstName} {latestEnrollment.ClassSession.HomeroomTeacher.LastName}" : null,
+                Parents = student.StudentParents.Select(sp => new ParentInfoDto
+                {
+                    FullName = $"{sp.Parent.FirstName} {sp.Parent.LastName}",
+                    Phone = sp.Parent.Phone,
+                    Relationship = sp.RelationalName
+                }).ToList()
+            };
+
+            return Ok(ApiResponse<StudentDetailsDto>.Success("Lấy thông tin học sinh thành công", studentDetails));
         }
 
         // PUT: api/Students/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutStudent(int id, [FromBody] StudentDetailsDto dto)
+        public async Task<IActionResult> PutStudent(int id, [FromBody] StudentUpdateDto dto)
         {
+            if (id != dto.StudentId)
+            {
+                return BadRequest(ApiResponse<object>.Fail("ID không khớp."));
+            }
 
+            var student = await _context.Students.FindAsync(id);
+            if (student == null)
+            {
+                return NotFound(ApiResponse<object>.Fail("Không tìm thấy học sinh."));
+            }
+
+            if (!string.IsNullOrEmpty(dto.IdentityCode) && await _context.Students.AnyAsync(s => s.IdentityCode == dto.IdentityCode && s.StudentId != id))
+            {
+                return Conflict(ApiResponse<object>.Fail($"Mã định danh '{dto.IdentityCode}' đã tồn tại."));
+            }
+
+            student.IdentityCode = dto.IdentityCode;
+            student.FirstName = dto.FirstName;
+            student.LastName = dto.LastName;
+            student.IsMale = dto.IsMale;
+            student.DateOfBirth = dto.DateOfBirth.HasValue ? DateOnly.FromDateTime(dto.DateOfBirth.Value) : null;
+            student.Address = dto.Address;
+            student.Phone = dto.Phone;
+            student.Email = dto.Email;
+
+            _context.Entry(student).State = EntityState.Modified;
 
             try
             {
-                return Ok(ApiResponse<object>.Success("Cập nhật student thành công."));
+                await _context.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Success("Cập nhật thông tin học sinh thành công."));
             }
-            catch(DbUpdateException ex)
+            catch (Exception ex)
             {
-                return StatusCode(500, ApiResponse<object>.Fail($"Database update error: {ex.Message}"));
-            }
-            catch(Exception ex)
-            {
-                return StatusCode(500, ApiResponse<object>.Fail($"Unexpected error: {ex.Message}"));
+                return StatusCode(500, ApiResponse<object>.Fail($"Lỗi khi cập nhật: {ex.Message}"));
             }
         }
 
-
         // POST: api/Students
-        [Authorize(Roles = "TrainingDepartment")]
         [HttpPost]
         public async Task<IActionResult> CreateStudent([FromBody] StudentCreateDto dto)
         {
-            // 1. Validate model
-            if(!ModelState.IsValid)
-            {
-                var errors = ModelState
-                    .Where(e => e.Value?.Errors.Count > 0)
-                    .ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-                    );
-                return BadRequest(ApiResponse<object>.Fail("Validation failed.", errors));
-            }
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ.", ModelState));
 
-            // 2. Create Student and User within a transaction
+            if (await _context.Students.AnyAsync(s => s.IdentityCode == dto.IdentityCode))
+                return Conflict(ApiResponse<object>.Fail($"Mã định danh '{dto.IdentityCode}' đã tồn tại."));
+
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Create Student
-                var student = dto.ToStudent();
+                var student = new Student
+                {
+                    IdentityCode = dto.IdentityCode,
+                    FirstName = dto.FirstName,
+                    LastName = dto.LastName,
+                    IsMale = dto.IsMale,
+                    // FIX CS0029: Chuyển đổi DateTime? (DTO) sang DateOnly? (model)
+                    DateOfBirth = dto.DateOfBirth.HasValue ? DateOnly.FromDateTime(dto.DateOfBirth.Value) : null,
+                    Address = dto.Address,
+                    Phone = dto.Phone,
+                    Email = dto.Email,
+                };
                 _context.Students.Add(student);
-                await _context.SaveChangesAsync(); // Save to generate StudentId
+                await _context.SaveChangesAsync();
 
-                // Create User
                 var user = new User
                 {
                     UserName = dto.IdentityCode,
-                    Student = student
+                    Email = dto.Email,
+                    StudentId = student.StudentId,
+                    IsActive = true
                 };
-
                 var createUserResult = await _userManager.CreateAsync(user, "User@" + dto.IdentityCode);
-                if(!createUserResult.Succeeded)
+                if (!createUserResult.Succeeded)
                 {
-                    var errors = createUserResult.Errors
-                        .GroupBy(e => e.Code)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => g.Select(e => e.Description).ToArray()
-                        );
-                    return BadRequest(ApiResponse<object>.Fail("Không tạo được tài khoản người dùng.", errors));
+                    await transaction.RollbackAsync();
+                    return BadRequest(ApiResponse<object>.Fail("Không tạo được tài khoản người dùng.", createUserResult.Errors));
                 }
-
-                // Assign role
                 await _userManager.AddToRoleAsync(user, "Student");
 
-                // Commit transaction
                 await transaction.CommitAsync();
 
-                // 3. Return success response
-                return StatusCode(201, ApiResponse<object>.Success(
-                    "Tạo student thành công.",
-                    new
-                    {
-                        student.StudentId,
-                        student.FirstName,
-                        student.LastName,
-                        student.IdentityCode,
-                        user.Id
-                    }
-                ));
+                return CreatedAtAction(nameof(GetStudentById), new { id = student.StudentId }, ApiResponse<object>.Success("Tạo học sinh và tài khoản thành công."));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return StatusCode(500, ApiResponse<object>.Fail("An error occurred while creating the student.", null));
+                return StatusCode(500, ApiResponse<object>.Fail($"Lỗi hệ thống: {ex.Message}"));
             }
-        }
-
-
-        [HttpGet("test-cause-error")]
-        public IActionResult CauseError()
-        {
-            int a = 0;
-            int result = 1 / a;
-
-            return Ok(result);
-        }
-
-        private bool StudentExists(int id)
-        {
-            return _context.Students.Any(e => e.StudentId == id);
         }
 
         //Import Excel
         [HttpPost("import-students")]
         public async Task<IActionResult> ImportStudentsFromExcel(IFormFile file)
         {
-            if(file == null || file.Length == 0)
-                return BadRequest("Vui lòng chọn file Excel.");
+            if (file == null || file.Length == 0)
+                return BadRequest(ApiResponse<object>.Fail("Vui lòng chọn file Excel."));
+
+            var studentsToImport = new List<Student>();
+            var errorLogs = new List<string>();
+
+            // FIX CS1061: Dùng ToListAsync() rồi tạo HashSet từ danh sách đó
+            var existingCodes = new HashSet<string>(await _context.Students.Select(s => s.IdentityCode!).ToListAsync());
 
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
-            var studentsToAdd = new List<Student>();
-
-            using var stream = new MemoryStream();
+            await using var stream = new MemoryStream();
             await file.CopyToAsync(stream);
             using var package = new ExcelPackage(stream);
-            var worksheet = package.Workbook.Worksheets[0];
+            var worksheet = package.Workbook.Worksheets.FirstOrDefault();
+            if (worksheet == null) return BadRequest(ApiResponse<object>.Fail("File Excel không có worksheet."));
 
-            int rowCount = worksheet.Dimension.Rows;
-
-            for(int row = 2; row <= rowCount; row++)
+            for (int row = 2; row <= worksheet.Dimension.Rows; row++)
             {
-                var identityCode = worksheet.Cells[row, 1].Text.Trim();
-                var firstName = worksheet.Cells[row, 2].Text.Trim();
-                var lastName = worksheet.Cells[row, 3].Text.Trim();
-                var dobText = worksheet.Cells[row, 4].Text.Trim();
-                var address = worksheet.Cells[row, 5].Text.Trim();
-                var phone = worksheet.Cells[row, 6].Text.Trim();
-                var email = worksheet.Cells[row, 7].Text.Trim();
-
-                // Check duplicate in DB
-                bool isDuplicate = await _context.Students.AnyAsync(s =>
-                    (identityCode != "" && s.IdentityCode == identityCode) ||
-                    (phone != "" && s.Phone == phone) ||
-                    (email != "" && s.Email == email));
-
-                if(isDuplicate)
-                    continue; // Skip this row
-
-                // Parse Date
-                DateTime? dob = null;
-                if(DateTime.TryParse(dobText, out var parsedDate))
-                    dob = parsedDate;
-
-                studentsToAdd.Add(new Student
+                try
                 {
-                    IdentityCode = identityCode == "" ? null : identityCode,
-                    FirstName = firstName,
-                    LastName = lastName,
-                    DateOfBirth = dob.HasValue ? DateOnly.FromDateTime(dob.Value) : null,
-                    Address = address == "" ? null : address,
-                    Phone = phone == "" ? null : phone,
-                    Email = email == "" ? null : email
-                });
+                    var identityCode = worksheet.Cells[row, 1].Text.Trim();
+                    if (string.IsNullOrEmpty(identityCode) || existingCodes.Contains(identityCode))
+                    {
+                        errorLogs.Add($"Dòng {row}: Mã định danh '{identityCode}' trống hoặc đã tồn tại.");
+                        continue;
+                    }
+
+                    DateTime.TryParse(worksheet.Cells[row, 5].Text, out var dob);
+                    bool.TryParse(worksheet.Cells[row, 4].Text, out var isMale);
+
+                    studentsToImport.Add(new Student
+                    {
+                        IdentityCode = identityCode,
+                        FirstName = worksheet.Cells[row, 2].Text.Trim(),
+                        LastName = worksheet.Cells[row, 3].Text.Trim(),
+                        IsMale = isMale,
+                        DateOfBirth = dob == DateTime.MinValue ? null : DateOnly.FromDateTime(dob),
+                        Address = worksheet.Cells[row, 6].Text.Trim(),
+                        Phone = worksheet.Cells[row, 7].Text.Trim(),
+                        Email = worksheet.Cells[row, 8].Text.Trim(),
+                    });
+                    existingCodes.Add(identityCode);
+                }
+                catch (Exception ex) { errorLogs.Add($"Dòng {row}: Lỗi - {ex.Message}"); }
             }
 
-            _context.Students.AddRange(studentsToAdd);
-            await _context.SaveChangesAsync();
+            if (studentsToImport.Any())
+            {
+                await _context.Students.AddRangeAsync(studentsToImport);
+                await _context.SaveChangesAsync();
+            }
 
-            return Ok(ApiResponse<string>.Success($"Đã thêm {studentsToAdd.Count} sinh viên từ Excel."));
+            return Ok(ApiResponse<object>.Success(
+                $"Import hoàn tất. Thêm thành công {studentsToImport.Count} học sinh.",
+                new { SuccessCount = studentsToImport.Count, ErrorCount = errorLogs.Count, Errors = errorLogs }
+            ));
         }
 
 
@@ -242,33 +274,13 @@ namespace e_learning_vie.Controllers.StudentsManagement
         public async Task<IActionResult> ExportStudentsToExcel()
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
             var students = await _context.Students.AsNoTracking().ToListAsync();
 
             using var package = new ExcelPackage();
             var worksheet = package.Workbook.Worksheets.Add("Students");
-
-            // Header
-            worksheet.Cells[1, 1].Value = "IdentityCode";
-            worksheet.Cells[1, 2].Value = "FirstName";
-            worksheet.Cells[1, 3].Value = "LastName";
-            worksheet.Cells[1, 4].Value = "DateOfBirth";
-            worksheet.Cells[1, 5].Value = "Address";
-            worksheet.Cells[1, 6].Value = "Phone";
-            worksheet.Cells[1, 7].Value = "Email";
-
-            int row = 2;
-            foreach(var student in students)
-            {
-                worksheet.Cells[row, 1].Value = student.IdentityCode;
-                worksheet.Cells[row, 2].Value = student.FirstName;
-                worksheet.Cells[row, 3].Value = student.LastName;
-                worksheet.Cells[row, 4].Value = student.DateOfBirth?.ToString("yyyy-MM-dd");
-                worksheet.Cells[row, 5].Value = student.Address;
-                worksheet.Cells[row, 6].Value = student.Phone;
-                worksheet.Cells[row, 7].Value = student.Email;
-                row++;
-            }
+            worksheet.Cells["A1"].LoadFromCollection(students, true);
+            worksheet.Column(5).Style.Numberformat.Format = "yyyy-mm-dd";
+            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
 
             var stream = new MemoryStream();
             package.SaveAs(stream);
@@ -276,6 +288,5 @@ namespace e_learning_vie.Controllers.StudentsManagement
 
             return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "students.xlsx");
         }
-
     }
 }
