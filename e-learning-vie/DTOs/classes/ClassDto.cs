@@ -25,11 +25,13 @@ namespace e_learning_vie.DTOs.classes
     public class ClassCreateDto
     {
         [Required(ErrorMessage = "Tên lớp không được để trống.")]
-        [StringLength(50, ErrorMessage = "Tên lớp có độ dài tối đa 50 ký tự.")]
         public string ClassName { get; set; } = null!;
 
         [Required(ErrorMessage = "Khối không được để trống.")]
-        public int GradeId { get; set; } // Thêm: Lớp phải thuộc về một khối
+        public int GradeId { get; set; }
+
+        // THÊM: ID của giáo viên chủ nhiệm
+        public int? TeacherId { get; set; }
     }
 
     public class ClassUpdateDto
@@ -38,10 +40,12 @@ namespace e_learning_vie.DTOs.classes
         public int ClassId { get; set; }
 
         [Required(ErrorMessage = "Tên lớp không được để trống.")]
-        [StringLength(50, ErrorMessage = "Tên lớp có độ dài tối đa 50 ký tự.")]
         public string ClassName { get; set; } = null!;
 
         [Required(ErrorMessage = "Khối không được để trống.")]
-        public int GradeId { get; set; } // Thêm: Cho phép cập nhật cả khối
+        public int GradeId { get; set; }
+
+        // THÊM: ID của giáo viên chủ nhiệm
+        public int? TeacherId { get; set; }
     }
 }

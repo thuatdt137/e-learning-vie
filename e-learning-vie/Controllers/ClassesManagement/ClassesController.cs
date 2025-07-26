@@ -27,6 +27,10 @@ namespace e_learning_vie.Controllers.ClassesManagement
                 var query = _context.Classes
                     .AsNoTracking()
                     .Include(c => c.Grade)
+                    .Include(c => c.ClassSessions)
+                        .ThenInclude(cs => cs.HomeroomTeacher)
+                    .Include(c => c.ClassSessions)
+                        .ThenInclude(cs => cs.Semester)
                     .AsQueryable();
 
                 if (!string.IsNullOrWhiteSpace(keyWord))
@@ -38,25 +42,30 @@ namespace e_learning_vie.Controllers.ClassesManagement
                     );
                 }
 
+                // Đếm tổng số mục trước khi phân trang
                 var totalItems = await query.CountAsync();
 
-                // FIX CS0117: Sửa lại logic phân trang để chỉ dùng hàm GetPagingParameters
+                // FIX: Sử dụng PagingUtil của bạn để thực hiện phân trang thủ công
                 // 1. Lấy các tham số phân trang đã được chuẩn hóa
                 var (effectivePageNumber, effectivePageSize) = PagingUtil.GetPagingParameters(pageNumber, pageSize);
 
                 // 2. Sắp xếp và áp dụng Skip/Take trên CSDL
-                var pagedQuery = query.OrderBy(c => c.Grade!.GradeId).ThenBy(c => c.ClassName)
-                                      .Skip((effectivePageNumber - 1) * effectivePageSize)
-                                      .Take(effectivePageSize);
+                var pagedEntities = await query.OrderBy(c => c.Grade!.GradeId).ThenBy(c => c.ClassName)
+                                               .Skip((effectivePageNumber - 1) * effectivePageSize)
+                                               .Take(effectivePageSize)
+                                               .ToListAsync();
 
-                // 3. Thực thi truy vấn và map sang DTO
-                var classDtos = await pagedQuery.Select(c => new ClassListDto
+                // 3. Map sang DTO sau khi đã lấy dữ liệu
+                var classDtos = pagedEntities.Select(c => new ClassListDto
                 {
                     ClassId = c.ClassId,
                     ClassName = c.ClassName,
-                    GradeName = c.Grade!.GradeName
-                }).ToListAsync();
-
+                    GradeName = c.Grade?.GradeName,
+                    HomeroomTeacherName = c.ClassSessions
+                                           .OrderByDescending(cs => cs.Semester.StartDate)
+                                           .Select(cs => cs.HomeroomTeacher != null ? $"{cs.HomeroomTeacher.FirstName} {cs.HomeroomTeacher.LastName}" : null)
+                                           .FirstOrDefault()
+                }).ToList();
 
                 if (totalItems == 0)
                 {
@@ -80,34 +89,67 @@ namespace e_learning_vie.Controllers.ClassesManagement
         }
 
         // GET: api/Classes/5
+        // GET: api/Classes/5
         [HttpGet("{id}")]
         public async Task<IActionResult> GetClassById(int id)
         {
             try
             {
-                var cls = await _context.Classes
+                // BƯỚC 1: Lấy thông tin cơ bản của lớp học trước
+                var classInfo = await _context.Classes
                     .AsNoTracking()
                     .Include(c => c.Grade)
                     .Where(c => c.ClassId == id)
-                    .Select(c => new ClassDetailDto
+                    .Select(c => new
                     {
-                        ClassId = c.ClassId,
-                        ClassName = c.ClassName,
-                        GradeId = c.GradeId,
-                        GradeName = c.Grade!.GradeName,
-                        StudentCount = c.ClassSessions
-                                        .OrderByDescending(cs => cs.Semester.StartDate)
-                                        .FirstOrDefault()!
-                                        .Enrollments.Count()
+                        c.ClassId,
+                        c.ClassName,
+                        c.GradeId,
+                        GradeName = c.Grade!.GradeName
                     })
                     .FirstOrDefaultAsync();
 
-                if (cls == null)
+                if (classInfo == null)
                 {
                     return NotFound(ApiResponse<object>.Fail($"Không tìm thấy lớp có ID = {id}."));
                 }
 
-                return Ok(ApiResponse<object>.Success("Lấy thông tin lớp thành công.", cls));
+                // BƯỚC 2: Tìm ClassSession mới nhất một cách riêng biệt
+                var latestSession = await _context.ClassSessions
+                    .AsNoTracking()
+                    .Where(cs => cs.ClassId == id)
+                    .OrderByDescending(cs => cs.Semester.StartDate)
+                    .FirstOrDefaultAsync();
+
+                int studentCount = 0;
+                string? teacherName = "Chưa có";
+
+                // BƯỚC 3: Nếu có session, thực hiện truy vấn đếm học sinh và lấy tên GVCN
+                if (latestSession != null)
+                {
+                    // Đếm sĩ số bằng một truy vấn riêng, đơn giản
+                    studentCount = await _context.Enrollments
+                        .CountAsync(e => e.ClassSessionId == latestSession.ClassSessionId);
+
+                    // Lấy tên GVCN bằng một truy vấn riêng
+                    teacherName = await _context.ClassSessions
+                        .Where(cs => cs.ClassSessionId == latestSession.ClassSessionId)
+                        .Select(cs => cs.HomeroomTeacher != null ? $"{cs.HomeroomTeacher.FirstName} {cs.HomeroomTeacher.LastName}" : "Chưa có")
+                        .FirstOrDefaultAsync();
+                }
+
+                // BƯỚC 4: Tổng hợp kết quả vào DTO
+                var classDetailDto = new ClassDetailDto
+                {
+                    ClassId = classInfo.ClassId,
+                    ClassName = classInfo.ClassName,
+                    GradeId = classInfo.GradeId,
+                    GradeName = classInfo.GradeName,
+                    HomeroomTeacherName = teacherName,
+                    StudentCount = studentCount
+                };
+
+                return Ok(ApiResponse<object>.Success("Lấy thông tin lớp thành công.", classDetailDto));
             }
             catch (Exception ex)
             {
@@ -124,8 +166,11 @@ namespace e_learning_vie.Controllers.ClassesManagement
                 return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ.", ModelState));
             }
 
+            // SỬA ĐỔI: Sử dụng transaction vì thao tác trên nhiều bảng
+            await using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                // --- Các bước kiểm tra ---
                 if (await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName))
                 {
                     return Conflict(ApiResponse<object>.Fail($"Lớp '{dto.ClassName}' đã tồn tại."));
@@ -136,27 +181,52 @@ namespace e_learning_vie.Controllers.ClassesManagement
                     return BadRequest(ApiResponse<object>.Fail($"Khối có ID '{dto.GradeId}' không tồn tại."));
                 }
 
+                // SỬA ĐỔI: Kiểm tra giáo viên có tồn tại không nếu được cung cấp
+                if (dto.TeacherId.HasValue && !await _context.Teachers.AnyAsync(t => t.TeacherId == dto.TeacherId.Value))
+                {
+                    return BadRequest(ApiResponse<object>.Fail($"Giáo viên có ID '{dto.TeacherId}' không tồn tại."));
+                }
+
+                // --- Tạo lớp mới ---
                 var newClass = new Class
                 {
                     ClassName = dto.ClassName,
                     GradeId = dto.GradeId
                 };
-
                 _context.Classes.Add(newClass);
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(); // Lưu để lấy ClassId
 
-                var resultDto = new ClassListDto
+                // SỬA ĐỔI: Nếu có TeacherId, tạo luôn ClassSession cho học kỳ hiện tại
+                if (dto.TeacherId.HasValue)
                 {
-                    ClassId = newClass.ClassId,
-                    ClassName = newClass.ClassName,
-                    GradeName = (await _context.Grades.FindAsync(newClass.GradeId))?.GradeName
-                };
+                    var currentDate = DateOnly.FromDateTime(DateTime.Now);
+                    var currentSemester = await _context.Semesters
+                        .FirstOrDefaultAsync(s => s.StartDate <= currentDate && s.EndDate >= currentDate);
 
-                return CreatedAtAction(nameof(GetClassById), new { id = newClass.ClassId },
-                    ApiResponse<object>.Success("Tạo lớp thành công.", resultDto));
+                    if (currentSemester == null)
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(ApiResponse<object>.Fail("Không tìm thấy học kỳ hiện tại để gán giáo viên chủ nhiệm."));
+                    }
+
+                    var newClassSession = new ClassSession
+                    {
+                        ClassId = newClass.ClassId,
+                        TeacherId = dto.TeacherId.Value,
+                        SemesterId = currentSemester.SemesterId
+                    };
+                    _context.ClassSessions.Add(newClassSession);
+                    await _context.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync(); // Hoàn tất transaction
+
+                var result = await GetClassById(newClass.ClassId) as OkObjectResult;
+                return CreatedAtAction(nameof(GetClassById), new { id = newClass.ClassId }, result?.Value);
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return StatusCode(500, ApiResponse<object>.Error($"Lỗi hệ thống khi tạo lớp: {ex.Message}"));
             }
         }
@@ -170,6 +240,7 @@ namespace e_learning_vie.Controllers.ClassesManagement
                 return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ hoặc ID không khớp."));
             }
 
+            await using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 var existingClass = await _context.Classes.FindAsync(id);
@@ -178,6 +249,7 @@ namespace e_learning_vie.Controllers.ClassesManagement
                     return NotFound(ApiResponse<object>.Fail($"Không tìm thấy lớp có ID = {id}."));
                 }
 
+                // --- Các bước kiểm tra ---
                 if (await _context.Classes.AnyAsync(c => c.ClassName == dto.ClassName && c.ClassId != id))
                 {
                     return Conflict(ApiResponse<object>.Fail($"Tên lớp '{dto.ClassName}' đã tồn tại."));
@@ -188,15 +260,57 @@ namespace e_learning_vie.Controllers.ClassesManagement
                     return BadRequest(ApiResponse<object>.Fail($"Khối có ID '{dto.GradeId}' không tồn tại."));
                 }
 
+                if (dto.TeacherId.HasValue && !await _context.Teachers.AnyAsync(t => t.TeacherId == dto.TeacherId.Value))
+                {
+                    return BadRequest(ApiResponse<object>.Fail($"Giáo viên có ID '{dto.TeacherId}' không tồn tại."));
+                }
+
+                // --- Cập nhật thông tin lớp ---
                 existingClass.ClassName = dto.ClassName;
                 existingClass.GradeId = dto.GradeId;
 
+                // SỬA ĐỔI: Cập nhật hoặc tạo mới ClassSession cho GVCN
+                if (dto.TeacherId.HasValue)
+                {
+                    var currentDate = DateOnly.FromDateTime(DateTime.Now);
+                    var currentSemester = await _context.Semesters
+                        .FirstOrDefaultAsync(s => s.StartDate <= currentDate && s.EndDate >= currentDate);
+
+                    if (currentSemester == null)
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(ApiResponse<object>.Fail("Không tìm thấy học kỳ hiện tại để cập nhật giáo viên chủ nhiệm."));
+                    }
+
+                    var currentClassSession = await _context.ClassSessions
+                        .FirstOrDefaultAsync(cs => cs.ClassId == id && cs.SemesterId == currentSemester.SemesterId);
+
+                    if (currentClassSession != null)
+                    {
+                        // Nếu đã có session, chỉ cập nhật lại TeacherId
+                        currentClassSession.TeacherId = dto.TeacherId.Value;
+                    }
+                    else
+                    {
+                        // Nếu chưa có, tạo mới
+                        var newClassSession = new ClassSession
+                        {
+                            ClassId = id,
+                            TeacherId = dto.TeacherId.Value,
+                            SemesterId = currentSemester.SemesterId
+                        };
+                        _context.ClassSessions.Add(newClassSession);
+                    }
+                }
+
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 return Ok(ApiResponse<object>.Success("Cập nhật lớp thành công."));
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return StatusCode(500, ApiResponse<object>.Error($"Lỗi hệ thống: {ex.Message}"));
             }
         }
