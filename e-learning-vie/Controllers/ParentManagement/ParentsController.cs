@@ -1,6 +1,7 @@
-using e_learning_vie.Commons;
+﻿using e_learning_vie.Commons;
 using e_learning_vie.DTOs.Parent;
 using e_learning_vie.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 
@@ -11,9 +12,11 @@ namespace e_learning_vie.Controllers.ParentManagement
     public class ParentsController : ControllerBase
     {
         private readonly SchoolManagementContext _context;
-        public ParentsController(SchoolManagementContext context)
+        private readonly UserManager<User> _userManager;
+        public ParentsController(SchoolManagementContext context, UserManager<User> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
         [HttpGet]
         public IActionResult GetParents()
@@ -83,7 +86,32 @@ namespace e_learning_vie.Controllers.ParentManagement
             };
             var result = _context.Parents.Add(parent);
             _context.SaveChanges();
-            return Ok(ApiResponse<object>.Success("Parent created successfully.", result.Entity));
+
+            var user = new User
+            {
+                UserName = parent.IdentityCode,
+                Parent = parent
+            };
+
+            var createUserResult = _userManager.CreateAsync(user, "User@" + parent.IdentityCode);
+            if (!createUserResult.IsCompletedSuccessfully)
+            {
+                return BadRequest(ApiResponse<object>.Fail("Cannot create User Account."));
+            }
+
+            _userManager.AddToRoleAsync(user, "Parent");
+
+            return StatusCode(201, ApiResponse<object>.Success(
+                "Parent created successfully.",
+                new
+                {
+                    parent.ParentId,
+                    parent.FirstName,
+                    parent.LastName,
+                    parent.IdentityCode,
+                    user.Id
+                }
+            ));
         }
         [HttpPut("{id}")]
         public IActionResult UpdateParent(int id, [FromBody] ParentDTO parentDTO)

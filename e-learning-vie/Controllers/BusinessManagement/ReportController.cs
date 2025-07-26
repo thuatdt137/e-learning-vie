@@ -24,115 +24,101 @@ namespace e_learning_vie.Controllers.BusinessManagement
             _trendAnalysisService = trendAnalysisService;
         }
 
-        [HttpGet("department/{subjectGroupId}/latest-semester-scores")]
+        [HttpGet("latest-semester-scores/{subjectGroupId}")]
         public async Task<ActionResult<object>> GetLatestSemesterScores(int subjectGroupId)
         {
-            // Xác thực trưởng bộ môn
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            var subjectGroup = await _context.SubjectGroups
-                .FirstOrDefaultAsync(sg => sg.SubjectGroupId == subjectGroupId && sg.LeadTeacherId == userId);
-            if (subjectGroup == null)
-            {
-                return Unauthorized(new { Message = "Bạn không có quyền xem điểm số của bộ môn này" });
-            }
-
-            // Xác định kỳ học mới nhất
             var currentDate = DateOnly.FromDateTime(DateTime.Now);
             var latestSemester = await _context.Semesters
                 .Where(s => s.StartDate <= currentDate && s.EndDate >= currentDate)
                 .Include(s => s.AcademicYear)
                 .OrderByDescending(s => s.EndDate)
-                .FirstOrDefaultAsync() ?? await _context.Semesters
+                .FirstOrDefaultAsync()
+                ?? await _context.Semesters
                     .Include(s => s.AcademicYear)
                     .OrderByDescending(s => s.EndDate)
                     .FirstOrDefaultAsync();
 
             if (latestSemester == null)
-            {
-                return NotFound(new { Message = "Không tìm thấy kỳ học nào trong cơ sở dữ liệu" });
-            }
+                return NotFound(ApiResponse<object>.Fail("Không tìm thấy kỳ học nào trong cơ sở dữ liệu"));
 
-            // Lấy danh sách ClassSession trong kỳ học mới nhất
             var classSessions = await _context.ClassSessions
                 .Where(cs => cs.SemesterId == latestSemester.SemesterId)
                 .Select(cs => cs.ClassSessionId)
                 .ToListAsync();
 
             if (!classSessions.Any())
-            {
                 return NotFound(new { Message = $"Không tìm thấy phiên lớp nào trong kỳ {latestSemester.SemesterName} {latestSemester.AcademicYear.YearName}" });
-            }
 
-            // Lấy danh sách môn học thuộc SubjectGroup
             var subjects = await _context.Subjects
                 .Where(s => s.SubjectGroupId == subjectGroupId)
-                .Select(s => s.SubjectId)
+                .Select(s => new { s.SubjectId, s.SubjectName })
                 .ToListAsync();
 
             if (!subjects.Any())
-            {
                 return NotFound(new { Message = $"Không tìm thấy môn học nào thuộc bộ môn {subjectGroupId}" });
-            }
 
-            // Lấy danh sách ClassSessionId từ TeachingAssignments
+            var subjectIds = subjects.Select(s => s.SubjectId).ToList();
+
             var classSessionIds = await _context.TeachingAssignments
-                .Where(ta => classSessions.Contains(ta.ClassSessionId) && subjects.Contains(ta.SubjectId.Value))
+                .Where(ta => classSessions.Contains(ta.ClassSessionId) && subjectIds.Contains(ta.SubjectId.Value))
                 .Select(ta => ta.ClassSessionId)
                 .Distinct()
                 .ToListAsync();
 
             if (!classSessionIds.Any())
-            {
-                return NotFound(new { Message = "Không tìm thấy phân công giảng dạy nào cho các môn học trong kỳ này" });
-            }
+                return NotFound(ApiResponse<object>.Fail("Không tìm thấy phân công giảng dạy nào cho các môn học trong kỳ này"));
 
-            // Lấy danh sách EnrollmentId từ Enrollments
             var enrollmentIds = await _context.Enrollments
                 .Where(e => classSessionIds.Contains(e.ClassSessionId))
                 .Select(e => e.EnrollmentId)
                 .ToListAsync();
 
             if (!enrollmentIds.Any())
-            {
-                return NotFound(new { Message = "Không tìm thấy học sinh nào được ghi danh trong các phiên lớp này" });
-            }
+                return NotFound(ApiResponse<object>.Fail("Không tìm thấy học sinh nào được ghi danh trong các phiên lớp này"));
 
-            // Lấy danh sách StudentScores
             var studentScores = await _context.StudentScores
-                .Where(ss => enrollmentIds.Contains(ss.EnrollmentId))
-                .Include(ss => ss.Enrollment)
-                    .ThenInclude(e => e.Student)
+                .Where(ss => enrollmentIds.Contains(ss.EnrollmentId)
+                             && subjectIds.Contains(ss.SubjectScore.SubjectId))
                 .Include(ss => ss.SubjectScore)
                     .ThenInclude(ss => ss.Subject)
                 .Include(ss => ss.SubjectScore)
                     .ThenInclude(ss => ss.ScoreType)
-                .Include(ss => ss.Exam)
                 .Select(ss => new
                 {
-                    StudentId = ss.Enrollment.Student.StudentId,
-                    StudentName = $"{ss.Enrollment.Student.FirstName} {ss.Enrollment.Student.LastName}",
+                    SubjectId = ss.SubjectScore.Subject.SubjectId,
                     SubjectName = ss.SubjectScore.Subject.SubjectName,
-                    ScoreTypeName = ss.SubjectScore.ScoreType.TypeName,
                     Score = ss.Score,
-                    Weight = ss.SubjectScore.ScoreType.Weight,
-                    ExamName = ss.Exam != null ? ss.Exam.ExamType : "N/A",
-                    Note = ss.Note ?? "N/A",
-                    ClassSessionId = ss.Enrollment.ClassSessionId
+                    Weight = ss.SubjectScore.ScoreType.Weight
                 })
                 .ToListAsync();
 
-            return Ok(new
-            {
-                Message = $"Danh sách điểm số của học sinh trong các môn học thuộc bộ môn {subjectGroupId} trong kỳ {latestSemester.SemesterName} {latestSemester.AcademicYear.YearName}",
-                Semester = new
+            if (!studentScores.Any())
+                return NotFound(ApiResponse<object>.Fail("Không có điểm số nào để tính", null));
+
+            var avgScoresBySubject = studentScores
+                .GroupBy(x => new { x.SubjectId, x.SubjectName })
+                .Select(g => new
                 {
-                    SemesterId = latestSemester.SemesterId,
-                    SemesterName = latestSemester.SemesterName,
-                    AcademicYear = latestSemester.AcademicYear.YearName
-                },
-                Data = studentScores
-            });
+                    g.Key.SubjectId,
+                    g.Key.SubjectName,
+                    AverageScore = g.Sum(x => x.Score * x.Weight) / g.Sum(x => x.Weight)
+                })
+                .ToList();
+            return Ok(ApiResponse<dynamic>.Success($"Điểm trung bình của các môn trong bộ môn {subjectGroupId} cho kỳ {latestSemester.SemesterName} {latestSemester.AcademicYear.YearName}",
+                new
+                {
+                    Semester = new
+                    {
+                        SemesterId = latestSemester.SemesterId,
+                        SemesterName = latestSemester.SemesterName,
+                        AcademicYear = latestSemester.AcademicYear.YearName
+                    },
+                    Subjects = avgScoresBySubject
+                }
+                ));
         }
+
+
 
         private double CalculatePerformanceScore(double averageScore, double passingRate, int classCount, int totalStudents)
         {
