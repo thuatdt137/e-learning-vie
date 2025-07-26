@@ -16,10 +16,11 @@ namespace e_learning_vie.Controllers.TeachersManagement
     public class TeacherController : ControllerBase
     {
         private readonly SchoolManagementContext _context;
-
-        public TeacherController(SchoolManagementContext context)
+        private readonly UserManager<User> _userManager;
+        public TeacherController(SchoolManagementContext context, UserManager<User> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         // GET: api/Teacher
@@ -160,6 +161,19 @@ namespace e_learning_vie.Controllers.TeachersManagement
 
                 _context.Teachers.Add(teacher);
                 await _context.SaveChangesAsync();
+                var user = new User
+                {
+                    UserName = teacher.IdentityCode,
+                    Teacher = teacher
+                };
+
+                var createUserResult = _userManager.CreateAsync(user, "User@" + teacher.IdentityCode);
+                if (!createUserResult.IsCompletedSuccessfully)
+                {
+                    return BadRequest(ApiResponse<object>.Fail("Cannot create User Account."));
+                }
+
+                await _userManager.AddToRoleAsync(user, "Teacher");
 
                 await transaction.CommitAsync();
 

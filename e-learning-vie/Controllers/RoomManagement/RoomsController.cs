@@ -2,6 +2,7 @@ using e_learning_vie.Commons;
 using e_learning_vie.DTOs.Room;
 using e_learning_vie.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Linq;
 
 namespace e_learning_vie.Controllers.RoomManagement
@@ -102,9 +103,18 @@ namespace e_learning_vie.Controllers.RoomManagement
             {
                 return NotFound(ApiResponse<object>.Fail("Room not found."));
             }
-            _context.Rooms.Remove(room);
-            _context.SaveChanges();
-            return Ok(ApiResponse<object>.Success("Room deleted successfully."));
+
+            try
+            {
+                _context.Rooms.Remove(room);
+                _context.SaveChanges();
+                return Ok(ApiResponse<object>.Success("Room deleted successfully."));
+            }
+            catch (DbUpdateException)
+            {
+                return BadRequest(ApiResponse<object>.Fail("Cannot delete room because it is referenced by other records."));
+            }
         }
+
     }
 }
