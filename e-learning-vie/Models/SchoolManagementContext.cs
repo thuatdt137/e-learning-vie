@@ -61,6 +61,8 @@ public partial class SchoolManagementContext : IdentityDbContext<User, IdentityR
 
     public virtual DbSet<Room> Rooms { get; set; }
 
+    public virtual DbSet<TeacherSubject> TeacherSubjects { get; set; }
+
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

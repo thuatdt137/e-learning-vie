@@ -34,6 +34,39 @@ namespace e_learning_vie.DTOs.classes
         public int? TeacherId { get; set; }
     }
 
+    public class CreateClassSessionDto
+    {
+        public int ClassId { get; set; }
+        public int SemesterId { get; set; }
+        public int? TeacherId { get; set; }
+    }
+
+
+    public class CreateClassSessionListDto
+    {
+        public int ClassId { get; set; }
+        public int SemesterId { get; set; }
+        public int? HomeroomTeacherId { get; set; }
+        public List<SubjectTeacherDto> SubjectTeachers { get; set; }
+    }
+
+    public class CopyClassSessionDto
+    {
+        public int RefSemesterId { get; set; }
+        public int NewSemesterId { get; set; }
+        public List<int>? ClassIds { get; set; }
+        public bool CopyHomeroomTeacher { get; set; }
+        public List<SubjectTeacherDto>? SubjectTeachers { get; set; }
+    }
+
+    public class SubjectTeacherDto
+    {
+        public int SubjectId { get; set; }
+        public int? TeacherId { get; set; }
+
+        public int? ClassId { get; set; }
+    }
+
     public class ClassUpdateDto
     {
         [Required]
